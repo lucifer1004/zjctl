@@ -1,5 +1,6 @@
 //! Session management commands
 
+use crate::output;
 use serde::Serialize;
 use std::process::Command;
 
@@ -12,7 +13,7 @@ pub fn ls(json: bool) -> Result<(), Box<dyn std::error::Error>> {
     let sessions = list_sessions()?;
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&sessions)?);
+        output::print_success(&sessions);
     } else if sessions.is_empty() {
         println!("No active sessions");
     } else {
@@ -26,7 +27,7 @@ pub fn ls(json: bool) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub fn create(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn create(name: &str, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     // `zellij --session <name>` with detach creates a new session.
     // We use `zellij attach --create <name>` which creates if it doesn't exist,
     // combined with a force-detach approach using the `zellij kill-session` pattern.
@@ -41,21 +42,35 @@ pub fn create(name: &str) -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|err| format!("failed to run zellij: {err}"))?;
 
     if status.success() {
-        println!("session created: {name}");
+        if json {
+            output::print_success(serde_json::json!({
+                "session": name,
+                "created": true,
+            }));
+        } else {
+            println!("session created: {name}");
+        }
         Ok(())
     } else {
         Err(format!("failed to create session '{name}'").into())
     }
 }
 
-pub fn kill(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn kill(name: &str, json: bool) -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new("zellij")
         .args(["kill-session", name])
         .output()
         .map_err(|err| format!("failed to run zellij: {err}"))?;
 
     if output.status.success() {
-        println!("session killed: {name}");
+        if json {
+            output::print_success(serde_json::json!({
+                "session": name,
+                "killed": true,
+            }));
+        } else {
+            println!("session killed: {name}");
+        }
         Ok(())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);

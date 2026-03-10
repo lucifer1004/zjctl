@@ -287,7 +287,7 @@ pub fn run(plugin: Option<&str>, json: bool) -> Result<(), Box<dyn std::error::E
                 })
                 .collect(),
         };
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        crate::output::print_success(&report);
     } else {
         println!("zjctl doctor v{zjctl_version}");
         println!("============");

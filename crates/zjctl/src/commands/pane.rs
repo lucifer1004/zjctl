@@ -2,6 +2,7 @@
 
 use crate::client;
 use crate::commands::panes;
+use crate::output;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -21,6 +22,7 @@ pub fn send(
     enter: bool,
     delay_enter: f64,
     bytes: &[String],
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let text = bytes.join(" ");
 
@@ -31,6 +33,12 @@ pub fn send(
             SendStep::Delay(duration) => sleep(duration),
         }
     }
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "sent": true,
+        }));
+    }
     Ok(())
 }
 
@@ -38,16 +46,32 @@ pub fn interrupt(
     plugin: Option<&str>,
     selector: &str,
     all: bool,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    send_raw(plugin, selector, all, "\u{3}")
+    send_raw(plugin, selector, all, "\u{3}")?;
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "sent": true,
+        }));
+    }
+    Ok(())
 }
 
 pub fn escape(
     plugin: Option<&str>,
     selector: &str,
     all: bool,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    send_raw(plugin, selector, all, "\u{1b}")
+    send_raw(plugin, selector, all, "\u{1b}")?;
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "sent": true,
+        }));
+    }
+    Ok(())
 }
 
 pub fn capture(
@@ -55,6 +79,7 @@ pub fn capture(
     selector: &str,
     full: bool,
     no_restore: bool,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let selection = resolve_selection(plugin, selector)?;
     let restore = if no_restore {
@@ -64,14 +89,22 @@ pub fn capture(
     };
 
     focus_target(plugin, &selection.target_selector)?;
-    let output = dump_screen(full)?;
+    let raw = dump_screen(full)?;
 
     if let Some(selector) = restore {
         let _ = focus_target(plugin, &selector);
     }
 
-    let mut stdout = std::io::stdout();
-    stdout.write_all(&output)?;
+    if json {
+        let content = String::from_utf8_lossy(&raw);
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "content": content,
+        }));
+    } else {
+        let mut stdout = std::io::stdout();
+        stdout.write_all(&raw)?;
+    }
     Ok(())
 }
 
@@ -82,6 +115,7 @@ pub fn wait_idle(
     timeout: f64,
     full: bool,
     no_restore: bool,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if idle_time <= 0.0 {
         return Err("idle_time must be greater than 0".into());
@@ -130,15 +164,34 @@ pub fn wait_idle(
         let _ = focus_target(plugin, &selector);
     }
 
+    if json {
+        let elapsed = start.elapsed().as_secs_f64();
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "idle": true,
+            "elapsed_secs": (elapsed * 100.0).round() / 100.0,
+        }));
+    }
+
     Ok(())
 }
 
-pub fn focus(plugin: Option<&str>, selector: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn focus(
+    plugin: Option<&str>,
+    selector: &str,
+    json: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let params = serde_json::json!({
         "selector": selector,
     });
 
     client::rpc_call(plugin, methods::PANE_FOCUS, params)?;
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "focused": true,
+        }));
+    }
     Ok(())
 }
 
@@ -146,6 +199,7 @@ pub fn rename(
     plugin: Option<&str>,
     selector: &str,
     name: &str,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let params = serde_json::json!({
         "selector": selector,
@@ -153,6 +207,12 @@ pub fn rename(
     });
 
     client::rpc_call(plugin, methods::PANE_RENAME, params)?;
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "renamed": name,
+        }));
+    }
     Ok(())
 }
 
@@ -170,16 +230,24 @@ pub struct ResizeOptions<'a> {
 pub fn resize(
     plugin: Option<&str>,
     options: ResizeOptions<'_>,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if options.cols.is_some() || options.rows.is_some() {
-        return resize_to(
+        resize_to(
             plugin,
             options.selector,
             options.cols,
             options.rows,
             options.direction,
             options.max_steps,
-        );
+        )?;
+        if json {
+            output::print_success(serde_json::json!({
+                "selector": options.selector,
+                "resized": true,
+            }));
+        }
+        return Ok(());
     }
 
     if options.step == 0 {
@@ -202,6 +270,12 @@ pub fn resize(
     });
 
     client::rpc_call(plugin, methods::PANE_RESIZE, params)?;
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": options.selector,
+            "resized": true,
+        }));
+    }
     Ok(())
 }
 
@@ -422,6 +496,7 @@ pub fn close(
     plugin: Option<&str>,
     selector: &str,
     force: bool,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let selection = resolve_selection(plugin, selector)?;
     check_close_allowed(&selection, force)?;
@@ -429,10 +504,16 @@ pub fn close(
     focus_target(plugin, &selection.target_selector)?;
     run_close_pane_action()?;
 
-    if let Some(selector) = selection.restore_selector {
-        let _ = focus_target(plugin, &selector);
+    if let Some(restore) = selection.restore_selector {
+        let _ = focus_target(plugin, &restore);
     }
 
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "closed": true,
+        }));
+    }
     Ok(())
 }
 
@@ -450,6 +531,7 @@ pub struct LaunchOptions<'a> {
 pub fn launch(
     plugin: Option<&str>,
     options: LaunchOptions<'_>,
+    json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let before = panes::list(plugin)?;
     let focused_tab_index = before.iter().find(|p| p.focused).map(|p| p.tab_index);
@@ -482,10 +564,15 @@ pub fn launch(
         sleep(interval);
     };
 
-    if let Some(selector) = pane_id_to_selector(&pane.id) {
-        println!("{selector}");
+    let selector = pane_id_to_selector(&pane.id).unwrap_or_else(|| pane.id.clone());
+
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "pane_id": pane.id,
+        }));
     } else {
-        println!("{}", pane.id);
+        println!("{selector}");
     }
 
     Ok(())
@@ -690,7 +777,7 @@ fn focus_target(plugin: Option<&str>, selector: &str) -> Result<(), Box<dyn std:
     if selector == "focused" {
         return Ok(());
     }
-    focus(plugin, selector)
+    focus(plugin, selector, false)
 }
 
 fn pane_id_to_selector(id: &str) -> Option<String> {

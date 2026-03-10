@@ -66,11 +66,10 @@ fn pane_ids(panes: &[PaneInfo]) -> Vec<String> {
 }
 
 pub fn ls(plugin: Option<&str>, json: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let panes = list(plugin)?;
     if json {
-        let panes = list(plugin)?;
-        println!("{}", serde_json::to_string_pretty(&panes)?);
+        crate::output::print_success(&panes);
     } else {
-        let panes = list(plugin)?;
         print_table(&panes);
     }
 

@@ -6,6 +6,7 @@ use clap::{ArgAction, Parser, Subcommand};
 
 mod client;
 mod commands;
+mod output;
 mod zellij;
 
 const HELP_AFTER: &str = r#"Quickstart:
@@ -189,6 +190,10 @@ pub struct Cli {
     /// Target a specific Zellij session (overrides ZELLIJ_SESSION_NAME)
     #[arg(long, env = "ZELLIJ_SESSION_NAME", global = true)]
     session: Option<String>,
+
+    /// Output as JSON (applies to all commands)
+    #[arg(long, global = true)]
+    json: bool,
 
     /// Path to the zrpc plugin wasm file
     #[arg(long, env = "ZJCTL_PLUGIN_PATH")]
@@ -462,10 +467,16 @@ enum PaneCommands {
 
 fn main() {
     let cli = Cli::parse();
+    let json = cli.json;
 
     if let Err(e) = run(cli) {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
+        if json {
+            let exit = output::format_error(e.as_ref());
+            std::process::exit(exit);
+        } else {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
     }
 }
 
@@ -478,23 +489,25 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
     let plugin = cli.plugin.as_deref();
 
+    let json = cli.json;
+
     match cli.command {
         Commands::Sessions { cmd } => match cmd {
-            SessionsCommands::Ls { json } => {
-                commands::sessions::ls(json)?;
+            SessionsCommands::Ls { json: local } => {
+                commands::sessions::ls(json || local)?;
             }
             SessionsCommands::Create { name } => {
-                commands::sessions::create(&name)?;
+                commands::sessions::create(&name, json)?;
             }
             SessionsCommands::Kill { name } => {
-                commands::sessions::kill(&name)?;
+                commands::sessions::kill(&name, json)?;
             }
         },
         Commands::Action { args } => {
             commands::action::run(&args)?;
         }
-        Commands::Doctor { json } => {
-            commands::doctor::run(plugin, json)?;
+        Commands::Doctor { json: local } => {
+            commands::doctor::run(plugin, json || local)?;
         }
         Commands::Help => {
             print_help_quickstart();
@@ -509,12 +522,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let auto_load = if no_auto_load { false } else { auto_load };
             commands::install::run(plugin, print, force, load, auto_load)?;
         }
-        Commands::Status { json } => {
-            commands::status::run(plugin, json)?;
+        Commands::Status { json: local } => {
+            commands::status::run(plugin, json || local)?;
         }
         Commands::Panes { cmd } => match cmd {
-            PanesCommands::Ls { json } => {
-                commands::panes::ls(plugin, json)?;
+            PanesCommands::Ls { json: local } => {
+                commands::panes::ls(plugin, json || local)?;
             }
         },
         Commands::Pane { cmd } => match cmd {
@@ -525,23 +538,23 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 delay_enter,
                 bytes,
             } => {
-                commands::pane::send(plugin, &pane, all, enter, delay_enter, &bytes)?;
+                commands::pane::send(plugin, &pane, all, enter, delay_enter, &bytes, json)?;
             }
             PaneCommands::Focus { pane } => {
-                commands::pane::focus(plugin, &pane)?;
+                commands::pane::focus(plugin, &pane, json)?;
             }
             PaneCommands::Interrupt { pane, all } => {
-                commands::pane::interrupt(plugin, &pane, all)?;
+                commands::pane::interrupt(plugin, &pane, all, json)?;
             }
             PaneCommands::Escape { pane, all } => {
-                commands::pane::escape(plugin, &pane, all)?;
+                commands::pane::escape(plugin, &pane, all, json)?;
             }
             PaneCommands::Capture {
                 pane,
                 full,
                 no_restore,
             } => {
-                commands::pane::capture(plugin, &pane, full, no_restore)?;
+                commands::pane::capture(plugin, &pane, full, no_restore, json)?;
             }
             PaneCommands::WaitIdle {
                 pane,
@@ -550,10 +563,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 full,
                 no_restore,
             } => {
-                commands::pane::wait_idle(plugin, &pane, idle_time, timeout, full, no_restore)?;
+                commands::pane::wait_idle(
+                    plugin, &pane, idle_time, timeout, full, no_restore, json,
+                )?;
             }
             PaneCommands::Rename { pane, name } => {
-                commands::pane::rename(plugin, &pane, &name)?;
+                commands::pane::rename(plugin, &pane, &name, json)?;
             }
             PaneCommands::Resize {
                 pane,
@@ -577,10 +592,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                         step,
                         max_steps,
                     },
+                    json,
                 )?;
             }
             PaneCommands::Close { pane, force } => {
-                commands::pane::close(plugin, &pane, force)?;
+                commands::pane::close(plugin, &pane, force, json)?;
             }
             PaneCommands::Launch {
                 direction,
@@ -602,7 +618,7 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     start_suspended,
                     command: &command,
                 };
-                commands::pane::launch(plugin, options)?;
+                commands::pane::launch(plugin, options, json)?;
             }
         },
     }

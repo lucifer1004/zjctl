@@ -16,36 +16,71 @@ For reliable agent parsing, every command needs: (1) a `--json` flag producing s
 Related: [[RFC-0001:C-ERRORS]], [[RFC-0001:C-RESPONSE]]."""
 
 [[content.acceptance_criteria]]
-text = "every zjctl subcommand accepts --json and produces structured JSON on stdout"
-status = "pending"
+text = "global --json flag on Cli struct applies to all subcommands"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = 'pane launch --json outputs {"ok":true,"selector":"id:terminal:N"}'
-status = "pending"
+text = 'all commands wrap success output in {"ok":true,"result":...} envelope when --json is set'
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = 'pane send --json outputs {"ok":true,"sent_to":N}'
-status = "pending"
+text = 'pane launch --json outputs {"ok":true,"result":{"selector":"id:terminal:N","pane_id":"terminal:N"}}'
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = 'pane capture --json outputs {"ok":true,"content":"..."} with base64 or raw text content'
-status = "pending"
+text = 'pane send/interrupt/escape --json outputs {"ok":true,"result":{"selector":"...","sent":true}}'
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'pane capture --json outputs {"ok":true,"result":{"selector":"...","content":"..."}}'
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'pane focus/close/rename/resize --json outputs {"ok":true,"result":{...}} with operation confirmation'
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'pane wait-idle --json outputs {"ok":true,"result":{"selector":"...","idle":true,"elapsed_secs":N}}'
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'sessions create/kill --json outputs {"ok":true,"result":{"session":"...","created/killed":true}}'
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = 'error output with --json goes to stderr as {"ok":false,"error":{"code":"...","message":"..."}}'
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = "exit codes distinguish categories: 0=success, 1=rpc error, 2=client error, 3=usage error"
-status = "pending"
+text = "exit codes: 0=success, 1=rpc error, 2=client error (3 reserved for clap usage errors)"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "error codes classify ClientError variants: no_match, ambiguous_match, method_not_found, zellij_missing, plugin_not_installed, plugin_not_loaded, pipe_error, spawn_error, io_error, serialize_error"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "without --json, existing human-readable output is unchanged (backward compatible)"
-status = "pending"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "per-subcommand --json flags (panes ls, status, doctor, sessions ls) merge with global --json via OR"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "all existing unit tests pass"
+status = "done"
 category = "added"

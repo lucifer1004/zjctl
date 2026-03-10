@@ -16,7 +16,7 @@ pub fn run(plugin: Option<&str>, json: bool) -> Result<(), Box<dyn std::error::E
 
     if json {
         let report = StatusReport { focused, panes };
-        println!("{}", serde_json::to_string_pretty(&report)?);
+        crate::output::print_success(&report);
         return Ok(());
     }
 
