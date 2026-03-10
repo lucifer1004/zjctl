@@ -458,6 +458,7 @@ impl ZrpcPlugin {
             methods::PANE_RESIZE => self.handle_pane_resize(request),
             methods::PANE_CAPTURE => self.handle_pane_capture(request),
             methods::PANE_STATUS => self.handle_pane_status(request),
+            methods::PANE_TAG => self.handle_pane_tag(request),
             methods::TABS_LIST => self.handle_tabs_list(),
             _ => Err(RpcError::new(
                 RpcErrorCode::MethodNotFound,
@@ -508,6 +509,59 @@ impl ZrpcPlugin {
             "running": !pane.exited,
             "exit_status": pane.exit_status,
         }))
+    }
+
+    fn handle_pane_tag(&mut self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
+        let selector_str = request.params["selector"]
+            .as_str()
+            .ok_or_else(|| RpcError::new(RpcErrorCode::InvalidParams, "missing 'selector'"))?;
+        let key = request.params["key"]
+            .as_str()
+            .ok_or_else(|| RpcError::new(RpcErrorCode::InvalidParams, "missing 'key'"))?;
+        let remove = request.params["remove"].as_bool().unwrap_or(false);
+
+        let selector: PaneSelector = selector_str.parse().map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::InvalidParams,
+                format!("invalid selector: {}", e),
+            )
+        })?;
+
+        let panes = self.resolve_selector(&selector)?;
+
+        if panes.is_empty() {
+            return Err(RpcError::new(
+                RpcErrorCode::NoMatch,
+                "no panes match selector",
+            ));
+        }
+        if panes.len() > 1 {
+            return Err(RpcError::new(
+                RpcErrorCode::AmbiguousMatch,
+                format!("{} panes match selector", panes.len()),
+            ));
+        }
+
+        let pane_id = panes[0].id_string();
+
+        if remove {
+            self.state.remove_tag(&pane_id, key);
+            Ok(serde_json::json!({
+                "pane_id": pane_id,
+                "removed": key,
+            }))
+        } else {
+            let value = request.params["value"]
+                .as_str()
+                .ok_or_else(|| {
+                    RpcError::new(RpcErrorCode::InvalidParams, "missing 'value' (required when not removing)")
+                })?;
+            self.state.set_tag(&pane_id, key.to_string(), value.to_string());
+            Ok(serde_json::json!({
+                "pane_id": pane_id,
+                "tag": { key: value },
+            }))
+        }
     }
 
     fn handle_pane_capture(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
@@ -611,6 +665,22 @@ impl ZrpcPlugin {
                     .collect();
                 panes.sort_by_key(|p| (p.is_plugin, p.numeric_id));
                 Ok(panes.get(*index).copied().into_iter().collect())
+            }
+            PaneSelector::Tag { key, value } => {
+                let matching: Vec<_> = self
+                    .state
+                    .panes
+                    .values()
+                    .filter(|p| {
+                        self.state
+                            .tags
+                            .get(&p.id_string())
+                            .and_then(|tags| tags.get(key.as_str()))
+                            .map(|v| v == value)
+                            .unwrap_or(false)
+                    })
+                    .collect();
+                Ok(matching)
             }
         }
     }

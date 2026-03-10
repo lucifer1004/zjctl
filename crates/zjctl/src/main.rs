@@ -490,6 +490,17 @@ enum PaneCommands {
         #[arg(long, default_value = "30.0")]
         timeout: f64,
     },
+    /// Set or remove a tag on a pane
+    Tag {
+        /// Pane selector
+        #[arg(long)]
+        pane: String,
+        /// Tag to set (key=value) or key to remove (with --remove)
+        key: String,
+        /// Remove the tag instead of setting it
+        #[arg(long)]
+        remove: bool,
+    },
     /// Launch a new pane and print its selector
     #[command(after_help = PANE_LAUNCH_HELP)]
     Launch {
@@ -678,6 +689,9 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             PaneCommands::WaitExit { pane, timeout } => {
                 commands::pane::wait_exit(plugin, &pane, timeout, json)?;
+            }
+            PaneCommands::Tag { pane, key, remove } => {
+                commands::pane::tag(plugin, &pane, &key, remove, json)?;
             }
             PaneCommands::Launch {
                 direction,

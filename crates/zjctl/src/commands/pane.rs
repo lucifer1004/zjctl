@@ -302,6 +302,46 @@ impl PaneStatus {
     }
 }
 
+pub fn tag(
+    plugin: Option<&str>,
+    selector: &str,
+    key_or_pair: &str,
+    remove: bool,
+    json: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if remove {
+        let params = serde_json::json!({
+            "selector": selector,
+            "key": key_or_pair,
+            "remove": true,
+        });
+        let result = client::rpc_call(plugin, methods::PANE_TAG, params)?;
+        if json {
+            output::print_success(result);
+        } else {
+            let pane_id = result["pane_id"].as_str().unwrap_or("unknown");
+            println!("{}: removed tag '{}'", pane_id, key_or_pair);
+        }
+    } else {
+        let (key, value) = key_or_pair
+            .split_once('=')
+            .ok_or_else(|| format!("expected key=value format, got '{}'", key_or_pair))?;
+        let params = serde_json::json!({
+            "selector": selector,
+            "key": key,
+            "value": value,
+        });
+        let result = client::rpc_call(plugin, methods::PANE_TAG, params)?;
+        if json {
+            output::print_success(result);
+        } else {
+            let pane_id = result["pane_id"].as_str().unwrap_or("unknown");
+            println!("{}: {}={}", pane_id, key, value);
+        }
+    }
+    Ok(())
+}
+
 pub fn pane_status(
     plugin: Option<&str>,
     selector: &str,
@@ -1038,6 +1078,7 @@ mod tests {
             rows: 0,
             cols: 0,
             exit_status: None,
+            tags: std::collections::HashMap::new(),
         }
     }
 
@@ -1159,6 +1200,29 @@ mod tests {
 
         let err = find_new_pane(&before, &after).expect_err("expected error");
         assert_eq!(err, "2 new panes detected");
+    }
+
+    #[test]
+    fn tag_key_value_parsing() {
+        // Valid key=value
+        let pair = "role=builder";
+        let (key, value) = pair.split_once('=').unwrap();
+        assert_eq!(key, "role");
+        assert_eq!(value, "builder");
+    }
+
+    #[test]
+    fn tag_key_value_with_equals_in_value() {
+        let pair = "env=FOO=bar";
+        let (key, value) = pair.split_once('=').unwrap();
+        assert_eq!(key, "env");
+        assert_eq!(value, "FOO=bar");
+    }
+
+    #[test]
+    fn tag_key_only_fails() {
+        let pair = "role";
+        assert!(pair.split_once('=').is_none());
     }
 
     #[test]

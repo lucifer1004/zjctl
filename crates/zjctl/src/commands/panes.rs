@@ -2,6 +2,7 @@
 
 use crate::client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use zjctl_proto::methods;
 
@@ -24,6 +25,9 @@ pub struct PaneInfo {
     /// Exit status of the pane's process (None if still running)
     #[serde(default)]
     pub exit_status: Option<i32>,
+    /// Key-value tags for semantic addressing
+    #[serde(default)]
+    pub tags: HashMap<String, String>,
 }
 
 pub fn list(plugin: Option<&str>) -> Result<Vec<PaneInfo>, Box<dyn std::error::Error>> {
@@ -135,6 +139,7 @@ mod tests {
             rows: 0,
             cols: 0,
             exit_status: None,
+            tags: HashMap::new(),
         }
     }
 
@@ -165,6 +170,22 @@ mod tests {
         let json = serde_json::to_string(&p).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["exit_status"], 0);
+    }
+
+    #[test]
+    fn pane_info_includes_tags() {
+        let mut p = pane("terminal:1");
+        p.tags.insert("role".to_string(), "builder".to_string());
+        let json = serde_json::to_string(&p).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["tags"]["role"], "builder");
+    }
+
+    #[test]
+    fn pane_info_tags_default_empty() {
+        let json_str = r#"{"id":"terminal:1","pane_type":"terminal","title":"","command":null,"tab_index":0,"tab_name":"tab","focused":false,"floating":false,"suppressed":false,"rows":0,"cols":0,"exit_status":null}"#;
+        let p: PaneInfo = serde_json::from_str(json_str).unwrap();
+        assert!(p.tags.is_empty());
     }
 
     #[test]

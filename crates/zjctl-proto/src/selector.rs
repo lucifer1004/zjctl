@@ -32,6 +32,8 @@ pub enum PaneSelector {
     Command { pattern: StringPattern },
     /// Select by tab index and pane index within tab: `tab:N:index:M`
     TabIndex { tab: usize, index: usize },
+    /// Select by tag: `tag:key=value`
+    Tag { key: String, value: String },
 }
 
 /// Pane type discriminator
@@ -130,6 +132,24 @@ impl FromStr for PaneSelector {
         if let Some(rest) = s.strip_prefix("cmd:") {
             let pattern = parse_string_pattern(rest)?;
             return Ok(PaneSelector::Command { pattern });
+        }
+
+        // tag:key=value
+        if let Some(rest) = s.strip_prefix("tag:") {
+            if let Some((key, value)) = rest.split_once('=') {
+                if key.is_empty() {
+                    return Err(SelectorError::InvalidFormat(
+                        "tag selector key must not be empty".to_string(),
+                    ));
+                }
+                return Ok(PaneSelector::Tag {
+                    key: key.to_string(),
+                    value: value.to_string(),
+                });
+            }
+            return Err(SelectorError::InvalidFormat(
+                "tag selector requires format tag:key=value".to_string(),
+            ));
         }
 
         // tab:N:index:M
@@ -297,6 +317,36 @@ mod tests {
             }
             _ => panic!("expected TabIndex selector"),
         }
+    }
+
+    #[test]
+    fn test_parse_tag_selector() {
+        let sel: PaneSelector = "tag:role=builder".parse().unwrap();
+        match sel {
+            PaneSelector::Tag { key, value } => {
+                assert_eq!(key, "role");
+                assert_eq!(value, "builder");
+            }
+            _ => panic!("expected Tag selector"),
+        }
+    }
+
+    #[test]
+    fn test_parse_tag_selector_with_equals_in_value() {
+        let sel: PaneSelector = "tag:env=a=b".parse().unwrap();
+        match sel {
+            PaneSelector::Tag { key, value } => {
+                assert_eq!(key, "env");
+                assert_eq!(value, "a=b");
+            }
+            _ => panic!("expected Tag selector"),
+        }
+    }
+
+    #[test]
+    fn test_parse_tag_selector_missing_value() {
+        let err = "tag:role".parse::<PaneSelector>().unwrap_err();
+        assert!(matches!(err, SelectorError::InvalidFormat(_)));
     }
 
     #[test]

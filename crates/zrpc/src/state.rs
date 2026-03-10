@@ -13,6 +13,9 @@ pub struct PluginState {
     pub tabs: Vec<TabEntry>,
     /// Focused pane of the current client (if known)
     pub current_client_pane_id: Option<PaneId>,
+    /// Per-pane tags, keyed by pane ID string. Stored separately so tags
+    /// survive the clear+rebuild cycle in `update_panes`.
+    pub tags: HashMap<String, HashMap<String, String>>,
 }
 
 /// Information about a single pane
@@ -154,12 +157,39 @@ impl PluginState {
         self.tabs.iter().find(|t| t.active).map(|t| t.index)
     }
 
+    /// Set a tag on a pane
+    pub fn set_tag(&mut self, pane_id: &str, key: String, value: String) {
+        self.tags
+            .entry(pane_id.to_string())
+            .or_default()
+            .insert(key, value);
+    }
+
+    /// Remove a tag from a pane
+    pub fn remove_tag(&mut self, pane_id: &str, key: &str) -> bool {
+        if let Some(tags) = self.tags.get_mut(pane_id) {
+            let removed = tags.remove(key).is_some();
+            if tags.is_empty() {
+                self.tags.remove(pane_id);
+            }
+            removed
+        } else {
+            false
+        }
+    }
+
+    /// Get tags for a pane
+    pub fn get_tags(&self, pane_id: &str) -> HashMap<String, String> {
+        self.tags.get(pane_id).cloned().unwrap_or_default()
+    }
+
     /// List all panes for the panes.list command
     pub fn list_panes(&self, focused_id: Option<&str>) -> Vec<PaneListItem> {
         self.panes
             .values()
             .map(|p| {
                 let id = p.id_string();
+                let tags = self.get_tags(&id);
                 PaneListItem {
                     focused: focused_id == Some(id.as_str()),
                     id,
@@ -173,6 +203,7 @@ impl PluginState {
                     rows: p.rows,
                     cols: p.cols,
                     exit_status: p.exit_status,
+                    tags,
                 }
             })
             .collect()
@@ -194,4 +225,6 @@ pub struct PaneListItem {
     pub rows: usize,
     pub cols: usize,
     pub exit_status: Option<i32>,
+    #[serde(default)]
+    pub tags: HashMap<String, String>,
 }

@@ -1,0 +1,44 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-007"
+title = "Pane metadata and tagging"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = ["RFC-0001"]
+
+[content]
+description = """
+Agents managing many panes need semantic addressing beyond numeric IDs. This work item adds key-value metadata (tags) to panes, stored in the zrpc plugin state. Tags enable agents to label panes by role (e.g., role=builder) and select them by tag.
+
+Tags are set via `pane tag` and can be used in selectors via `tag:key=value`."""
+
+[[content.acceptance_criteria]]
+text = "pane.tag RPC method sets/removes key-value metadata on a pane"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "panes.list includes tags field (map of key-value pairs) for each pane"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "tag:key=value selector syntax matches panes by tag"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl pane tag --pane <selector> key=value sets a tag"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl pane tag --pane <selector> --remove key removes a tag"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "tags persist in plugin state across RPC calls (not across plugin reloads)"
+status = "done"
+category = "added"
