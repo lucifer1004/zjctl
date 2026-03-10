@@ -1,0 +1,54 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-001"
+title = "Add --session flag and session management commands"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = [
+    "ADR-0001",
+    "RFC-0001",
+]
+
+[content]
+description = """
+zjctl is currently hardwired to a single Zellij session via the ZELLIJ_SESSION_NAME env var. An agent managing multiple sessions (or operating from outside any session) cannot target a specific session without shell-level env manipulation per invocation.
+
+This work item adds a global `--session` CLI flag, session listing/creation/kill commands, and ensures all existing commands respect the session target. This is the most fundamental blocker for multi-session agent use.
+
+Related: [[ADR-0001]] (transport is local, session-scoped), [[RFC-0001:C-TRANSPORT]] (pipe configuration includes session name)."""
+
+[[content.acceptance_criteria]]
+text = "zjctl accepts a global --session <name> flag that overrides ZELLIJ_SESSION_NAME for all subcommands"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl sessions ls lists all active Zellij sessions with --json support"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl sessions create <name> creates a new detached Zellij session"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl sessions kill <name> terminates a Zellij session"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "all existing pane/panes/status commands work correctly when --session is specified"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "--session flag is documented in zjctl --help and zjctl help output"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "RFC-0001:C-TRANSPORT is updated to specify session targeting semantics"
+status = "pending"
+category = "added"

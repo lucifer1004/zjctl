@@ -1,0 +1,51 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-003"
+title = "Uniform --json output and structured error codes on all commands"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = ["RFC-0001"]
+
+[content]
+description = """
+Currently only `panes ls`, `status`, and `doctor` support `--json`. Other commands (`pane send`, `pane launch`, `pane capture`, `pane close`, etc.) print unstructured text or nothing at all. Errors go to stderr as human-readable text with exit code always 1.
+
+For reliable agent parsing, every command needs: (1) a `--json` flag producing structured JSON output on stdout, (2) structured error JSON on stderr with the error code from [[RFC-0001:C-ERRORS]], and (3) distinct exit codes for different failure categories. This enables agents to handle errors programmatically without parsing human text.
+
+Related: [[RFC-0001:C-ERRORS]], [[RFC-0001:C-RESPONSE]]."""
+
+[[content.acceptance_criteria]]
+text = "every zjctl subcommand accepts --json and produces structured JSON on stdout"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'pane launch --json outputs {"ok":true,"selector":"id:terminal:N"}'
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'pane send --json outputs {"ok":true,"sent_to":N}'
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'pane capture --json outputs {"ok":true,"content":"..."} with base64 or raw text content'
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = 'error output with --json goes to stderr as {"ok":false,"error":{"code":"...","message":"..."}}'
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "exit codes distinguish categories: 0=success, 1=rpc error, 2=client error, 3=usage error"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "without --json, existing human-readable output is unchanged (backward compatible)"
+status = "pending"
+category = "added"

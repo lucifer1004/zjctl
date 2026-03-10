@@ -1,0 +1,49 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-002"
+title = "Non-focus-dependent pane capture"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = [
+    "ADR-0005",
+    "ADR-0006",
+]
+
+[content]
+description = """
+Per [[ADR-0005]], pane capture currently requires focusing the target pane, running `zellij action dump-screen`, then restoring focus. This means two concurrent captures on different panes in the same session race on focus, making it impossible for agents to monitor multiple panes simultaneously.
+
+This work item explores and implements an alternative capture mechanism that does not require changing pane focus. The primary candidate is plugin-side screen buffer reading, which would require either a Zellij API addition or a creative workaround within the current plugin API. If neither is feasible, a serialization/locking mechanism for the focus-capture-restore sequence would be the fallback.
+
+Related: [[ADR-0005]], [[ADR-0006]] (wait-idle inherits the same limitation)."""
+
+[[content.acceptance_criteria]]
+text = "zjctl pane capture works on a non-focused pane without changing focus"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "two concurrent zjctl pane capture calls on different panes in the same session do not interfere"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl pane wait-idle works without changing focus"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "existing --full and --no-restore flags continue to work (--no-restore becomes a no-op if focus is not changed)"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "ADR-0005 is superseded or updated to reflect the new mechanism"
+status = "pending"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "if plugin-side capture is not feasible, a locking mechanism prevents concurrent focus races with clear error on contention"
+status = "pending"
+category = "added"
