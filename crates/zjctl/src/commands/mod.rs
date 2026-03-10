@@ -5,4 +5,5 @@ pub mod doctor;
 pub mod install;
 pub mod pane;
 pub mod panes;
+pub mod sessions;
 pub mod status;

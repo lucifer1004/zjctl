@@ -32,6 +32,9 @@ Selectors:
   cmd:substring   cmd:/regex/
   tab:N:index:M
 
+Session targeting:
+  --session / ZELLIJ_SESSION_NAME target a specific session.
+
 Plugin path:
   --plugin / ZJCTL_PLUGIN_PATH override the default plugin path.
 
@@ -95,6 +98,8 @@ const HELP_QUICKSTART: &str = r#"Quickstart:
 Tips:
   - Use `zjctl pane <cmd> --help` for command-specific examples
   - Use `zjctl panes ls --json` to drive automation
+  - Use `zjctl --session <name>` to target a specific session
+  - Use `zjctl sessions ls` to list available sessions
 "#;
 
 const PANE_SEND_HELP: &str = r#"Examples:
@@ -181,6 +186,10 @@ const PANE_LAUNCH_HELP: &str = r#"Examples:
     disable_help_subcommand = true
 )]
 pub struct Cli {
+    /// Target a specific Zellij session (overrides ZELLIJ_SESSION_NAME)
+    #[arg(long, env = "ZELLIJ_SESSION_NAME", global = true)]
+    session: Option<String>,
+
     /// Path to the zrpc plugin wasm file
     #[arg(long, env = "ZJCTL_PLUGIN_PATH")]
     plugin: Option<String>,
@@ -219,6 +228,11 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Session management
+    Sessions {
+        #[command(subcommand)]
+        cmd: SessionsCommands,
+    },
     /// Agent-friendly quickstart
     Help,
     /// Install the zrpc plugin
@@ -238,6 +252,42 @@ enum Commands {
         /// Do not add the plugin to config.kdl load_plugins
         #[arg(long, conflicts_with = "auto_load")]
         no_auto_load: bool,
+    },
+}
+
+const SESSIONS_HELP: &str = r#"Sessions examples:
+  # List all sessions
+  zjctl sessions ls
+  zjctl sessions ls --json
+
+  # Target a specific session
+  zjctl --session my-session panes ls
+
+  # Create a detached session
+  zjctl sessions create my-session
+
+  # Kill a session
+  zjctl sessions kill my-session
+"#;
+
+#[derive(Subcommand, Debug)]
+#[command(after_help = SESSIONS_HELP)]
+enum SessionsCommands {
+    /// List all Zellij sessions
+    Ls {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Create a new detached Zellij session
+    Create {
+        /// Session name
+        name: String,
+    },
+    /// Kill a Zellij session
+    Kill {
+        /// Session name
+        name: String,
     },
 }
 
@@ -420,9 +470,26 @@ fn main() {
 }
 
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    // If --session is provided, override the env var so all downstream code
+    // (zellij::command(), client::pipe_plugin_configuration()) picks it up.
+    if let Some(session) = &cli.session {
+        std::env::set_var("ZELLIJ_SESSION_NAME", session);
+    }
+
     let plugin = cli.plugin.as_deref();
 
     match cli.command {
+        Commands::Sessions { cmd } => match cmd {
+            SessionsCommands::Ls { json } => {
+                commands::sessions::ls(json)?;
+            }
+            SessionsCommands::Create { name } => {
+                commands::sessions::create(&name)?;
+            }
+            SessionsCommands::Kill { name } => {
+                commands::sessions::kill(&name)?;
+            }
+        },
         Commands::Action { args } => {
             commands::action::run(&args)?;
         }
