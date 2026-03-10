@@ -435,6 +435,21 @@ enum PaneCommands {
         #[arg(long)]
         force: bool,
     },
+    /// Check if a pane's process is running or exited
+    Status {
+        /// Pane selector
+        #[arg(long)]
+        pane: String,
+    },
+    /// Wait for a pane's process to exit
+    WaitExit {
+        /// Pane selector
+        #[arg(long)]
+        pane: String,
+        /// Maximum time to wait (seconds)
+        #[arg(long, default_value = "30.0")]
+        timeout: f64,
+    },
     /// Launch a new pane and print its selector
     #[command(after_help = PANE_LAUNCH_HELP)]
     Launch {
@@ -597,6 +612,12 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             PaneCommands::Close { pane, force } => {
                 commands::pane::close(plugin, &pane, force, json)?;
+            }
+            PaneCommands::Status { pane } => {
+                commands::pane::pane_status(plugin, &pane, json)?;
+            }
+            PaneCommands::WaitExit { pane, timeout } => {
+                commands::pane::wait_exit(plugin, &pane, timeout, json)?;
             }
             PaneCommands::Launch {
                 direction,

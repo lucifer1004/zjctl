@@ -21,6 +21,9 @@ pub struct PaneInfo {
     pub rows: usize,
     #[serde(default)]
     pub cols: usize,
+    /// Exit status of the pane's process (None if still running)
+    #[serde(default)]
+    pub exit_status: Option<i32>,
 }
 
 pub fn list(plugin: Option<&str>) -> Result<Vec<PaneInfo>, Box<dyn std::error::Error>> {
@@ -131,6 +134,7 @@ mod tests {
             suppressed: false,
             rows: 0,
             cols: 0,
+            exit_status: None,
         }
     }
 
@@ -152,5 +156,22 @@ mod tests {
         let a = vec![pane("terminal:1"), pane("terminal:2")];
         let b = vec![pane("terminal:2"), pane("terminal:1")];
         assert_eq!(pane_ids(&a), pane_ids(&b));
+    }
+
+    #[test]
+    fn pane_info_includes_exit_status() {
+        let mut p = pane("terminal:1");
+        p.exit_status = Some(0);
+        let json = serde_json::to_string(&p).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["exit_status"], 0);
+    }
+
+    #[test]
+    fn pane_info_exit_status_null_when_running() {
+        let p = pane("terminal:1");
+        let json = serde_json::to_string(&p).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed["exit_status"].is_null());
     }
 }

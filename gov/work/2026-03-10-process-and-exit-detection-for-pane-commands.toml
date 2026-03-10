@@ -1,0 +1,42 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-004"
+title = "Process and exit detection for pane commands"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = ["RFC-0001"]
+
+[content]
+description = """
+Agents currently rely on `wait-idle` (screen hash polling) to guess when a command finishes. This cannot distinguish 'still running, no output' from 'command exited'. Agents need to know when a process in a pane exits and what its exit code was.
+
+The zrpc plugin tracks pane metadata from Zellij's PaneManifest which includes exit_status. This work item exposes that information via:
+1. Including exit_status in `panes.list` output
+2. A `pane.status` RPC method returning process state for a selected pane
+3. A `pane wait-exit` CLI command that polls until the pane's process exits"""
+
+[[content.acceptance_criteria]]
+text = "panes.list includes exit_status field for each pane (null if running, integer if exited)"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "pane.status RPC method returns {pane_id, running, exit_status} for a selected pane"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl pane wait-exit --pane <selector> --timeout <secs> blocks until pane process exits"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "wait-exit --json outputs {selector, exit_status}"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "wait-exit respects --timeout and errors with structured code on timeout"
+status = "done"
+category = "added"

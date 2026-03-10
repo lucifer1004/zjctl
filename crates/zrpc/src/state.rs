@@ -40,6 +40,10 @@ pub struct PaneEntry {
     pub rows: usize,
     /// Pane content columns (terminal size)
     pub cols: usize,
+    /// Whether the pane's process has exited
+    pub exited: bool,
+    /// Exit status of the pane's process (None if still running)
+    pub exit_status: Option<i32>,
 }
 
 impl PaneEntry {
@@ -96,6 +100,8 @@ impl PluginState {
                     suppressed: pane.is_suppressed,
                     rows: pane.pane_content_rows,
                     cols: pane.pane_content_columns,
+                    exited: pane.exited,
+                    exit_status: pane.exit_status,
                 };
                 let key = entry.id_string();
                 self.panes.insert(key, entry);
@@ -167,6 +173,7 @@ impl PluginState {
                     suppressed: p.suppressed,
                     rows: p.rows,
                     cols: p.cols,
+                    exit_status: p.exit_status,
                 }
             })
             .collect()
@@ -187,4 +194,5 @@ pub struct PaneListItem {
     pub suppressed: bool,
     pub rows: usize,
     pub cols: usize,
+    pub exit_status: Option<i32>,
 }

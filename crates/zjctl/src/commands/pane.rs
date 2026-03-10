@@ -276,6 +276,110 @@ pub fn rename(
     Ok(())
 }
 
+/// Parsed pane status from pane.status RPC response.
+#[derive(Debug)]
+pub struct PaneStatus {
+    pub pane_id: String,
+    pub running: bool,
+    pub exit_status: Option<i32>,
+}
+
+impl PaneStatus {
+    pub fn from_rpc_result(value: &serde_json::Value) -> Result<Self, Box<dyn std::error::Error>> {
+        let pane_id = value["pane_id"]
+            .as_str()
+            .ok_or("missing 'pane_id' in status response")?
+            .to_string();
+        let running = value["running"]
+            .as_bool()
+            .ok_or("missing 'running' in status response")?;
+        let exit_status = value["exit_status"].as_i64().map(|v| v as i32);
+        Ok(Self {
+            pane_id,
+            running,
+            exit_status,
+        })
+    }
+}
+
+pub fn pane_status(
+    plugin: Option<&str>,
+    selector: &str,
+    json: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let result = client::rpc_call(
+        plugin,
+        methods::PANE_STATUS,
+        serde_json::json!({ "selector": selector }),
+    )?;
+    let status = PaneStatus::from_rpc_result(&result)?;
+
+    if json {
+        output::print_success(serde_json::json!({
+            "selector": selector,
+            "pane_id": status.pane_id,
+            "running": status.running,
+            "exit_status": status.exit_status,
+        }));
+    } else if status.running {
+        println!("{}: running", status.pane_id);
+    } else {
+        let code = status
+            .exit_status
+            .map(|c| c.to_string())
+            .unwrap_or("?".to_string());
+        println!("{}: exited ({})", status.pane_id, code);
+    }
+    Ok(())
+}
+
+pub fn wait_exit(
+    plugin: Option<&str>,
+    selector: &str,
+    timeout: f64,
+    json: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if timeout <= 0.0 {
+        return Err("timeout must be greater than 0".into());
+    }
+
+    let timeout_duration = Duration::from_secs_f64(timeout);
+    let poll = Duration::from_millis(250);
+    let start = Instant::now();
+
+    loop {
+        let result = client::rpc_call(
+            plugin,
+            methods::PANE_STATUS,
+            serde_json::json!({ "selector": selector }),
+        )?;
+        let status = PaneStatus::from_rpc_result(&result)?;
+
+        if !status.running {
+            if json {
+                output::print_success(serde_json::json!({
+                    "selector": selector,
+                    "pane_id": status.pane_id,
+                    "exit_status": status.exit_status,
+                }));
+            } else {
+                let code = status
+                    .exit_status
+                    .map(|c| c.to_string())
+                    .unwrap_or("?".to_string());
+                println!("exited ({})", code);
+            }
+            return Ok(());
+        }
+
+        if start.elapsed() >= timeout_duration {
+            return Err(format!("timed out after {timeout:.1}s waiting for exit").into());
+        }
+
+        sleep(poll);
+    }
+}
+
 pub struct ResizeOptions<'a> {
     pub selector: &'a str,
     pub increase: bool,
@@ -933,6 +1037,7 @@ mod tests {
             suppressed: false,
             rows: 0,
             cols: 0,
+            exit_status: None,
         }
     }
 
@@ -1054,5 +1159,36 @@ mod tests {
 
         let err = find_new_pane(&before, &after).expect_err("expected error");
         assert_eq!(err, "2 new panes detected");
+    }
+
+    #[test]
+    fn parse_status_running() {
+        let result = serde_json::json!({
+            "pane_id": "terminal:3",
+            "running": true,
+            "exit_status": null,
+        });
+        let status = PaneStatus::from_rpc_result(&result).unwrap();
+        assert_eq!(status.pane_id, "terminal:3");
+        assert!(status.running);
+        assert_eq!(status.exit_status, None);
+    }
+
+    #[test]
+    fn parse_status_exited() {
+        let result = serde_json::json!({
+            "pane_id": "terminal:3",
+            "running": false,
+            "exit_status": 1,
+        });
+        let status = PaneStatus::from_rpc_result(&result).unwrap();
+        assert!(!status.running);
+        assert_eq!(status.exit_status, Some(1));
+    }
+
+    #[test]
+    fn parse_status_missing_fields() {
+        let result = serde_json::json!({});
+        assert!(PaneStatus::from_rpc_result(&result).is_err());
     }
 }

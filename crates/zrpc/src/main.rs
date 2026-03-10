@@ -199,6 +199,7 @@ impl ZrpcPlugin {
             methods::PANE_RENAME => self.handle_pane_rename(&request),
             methods::PANE_RESIZE => self.handle_pane_resize(&request),
             methods::PANE_CAPTURE => self.handle_pane_capture(&request),
+            methods::PANE_STATUS => self.handle_pane_status(&request),
             _ => Err(RpcError::new(
                 RpcErrorCode::MethodNotFound,
                 format!("unknown method: {}", request.method),
@@ -410,6 +411,41 @@ impl ZrpcPlugin {
         }
 
         Ok(serde_json::json!({ "resized": pane.id_string() }))
+    }
+
+    fn handle_pane_status(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
+        let selector_str = request.params["selector"]
+            .as_str()
+            .ok_or_else(|| RpcError::new(RpcErrorCode::InvalidParams, "missing 'selector'"))?;
+
+        let selector: PaneSelector = selector_str.parse().map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::InvalidParams,
+                format!("invalid selector: {}", e),
+            )
+        })?;
+
+        let panes = self.resolve_selector(&selector)?;
+
+        if panes.is_empty() {
+            return Err(RpcError::new(
+                RpcErrorCode::NoMatch,
+                "no panes match selector",
+            ));
+        }
+        if panes.len() > 1 {
+            return Err(RpcError::new(
+                RpcErrorCode::AmbiguousMatch,
+                format!("{} panes match selector", panes.len()),
+            ));
+        }
+
+        let pane = &panes[0];
+        Ok(serde_json::json!({
+            "pane_id": pane.id_string(),
+            "running": !pane.exited,
+            "exit_status": pane.exit_status,
+        }))
     }
 
     fn handle_pane_capture(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
