@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use zellij_tile::prelude::*;
 use zjctl_proto::{
     methods, BatchOp, BatchResult, PaneSelector, PaneType, RpcError, RpcErrorCode, RpcRequest,
-    RpcResponse,
+    RpcResponse, StringPattern,
 };
 
 mod state;
@@ -459,6 +459,7 @@ impl ZrpcPlugin {
             methods::PANE_CAPTURE => self.handle_pane_capture(request),
             methods::PANE_STATUS => self.handle_pane_status(request),
             methods::PANE_TAG => self.handle_pane_tag(request),
+            methods::PANE_SEARCH => self.handle_pane_search(request),
             methods::TABS_LIST => self.handle_tabs_list(),
             _ => Err(RpcError::new(
                 RpcErrorCode::MethodNotFound,
@@ -562,6 +563,82 @@ impl ZrpcPlugin {
                 "tag": { key: value },
             }))
         }
+    }
+
+    fn handle_pane_search(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
+        let selector_str = request.params["selector"]
+            .as_str()
+            .ok_or_else(|| RpcError::new(RpcErrorCode::InvalidParams, "missing 'selector'"))?;
+        let full = request.params["full"].as_bool().unwrap_or(false);
+
+        let pattern: StringPattern =
+            serde_json::from_value(request.params["pattern"].clone()).map_err(|e| {
+                RpcError::new(
+                    RpcErrorCode::InvalidParams,
+                    format!("invalid 'pattern': {}", e),
+                )
+            })?;
+
+        let selector: PaneSelector = selector_str.parse().map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::InvalidParams,
+                format!("invalid selector: {}", e),
+            )
+        })?;
+
+        let panes = self.resolve_selector(&selector)?;
+
+        if panes.is_empty() {
+            return Err(RpcError::new(
+                RpcErrorCode::NoMatch,
+                "no panes match selector",
+            ));
+        }
+        if panes.len() > 1 {
+            return Err(RpcError::new(
+                RpcErrorCode::AmbiguousMatch,
+                format!("{} panes match selector", panes.len()),
+            ));
+        }
+
+        let pane = &panes[0];
+        let contents = get_pane_scrollback(pane.pane_id(), full).map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::Internal,
+                format!("failed to read pane contents: {}", e),
+            )
+        })?;
+
+        let mut lines: Vec<String> = Vec::new();
+        if full {
+            lines.extend(contents.lines_above_viewport);
+        }
+        lines.extend(contents.viewport);
+        if full {
+            lines.extend(contents.lines_below_viewport);
+        }
+
+        let mut matches = Vec::new();
+        for (i, line) in lines.iter().enumerate() {
+            let matched = pattern.matches(line).map_err(|e| {
+                RpcError::new(
+                    RpcErrorCode::InvalidParams,
+                    format!("pattern match error: {}", e),
+                )
+            })?;
+            if matched {
+                matches.push(serde_json::json!({
+                    "line_number": i + 1,
+                    "text": line,
+                }));
+            }
+        }
+
+        Ok(serde_json::json!({
+            "pane_id": pane.id_string(),
+            "matches": matches,
+            "match_count": matches.len(),
+        }))
     }
 
     fn handle_pane_capture(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {

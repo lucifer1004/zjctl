@@ -1,0 +1,45 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-008"
+title = "Pane scrollback search"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = ["RFC-0001"]
+
+[content]
+description = """
+Agents frequently check command output for specific patterns (error messages, \
+success markers, shell prompts). Currently they must capture the entire buffer \
+and search client-side. This adds server-side search via pane.search RPC, \
+returning matching lines with line numbers directly from the plugin."""
+
+[[content.acceptance_criteria]]
+text = "pane.search RPC accepts selector, pattern, and optional full flag"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "returns matching lines with line numbers and match count"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl pane grep --pane <selector> <pattern> searches pane output"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "supports substring and /regex/ pattern syntax"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "--full includes scrollback history in search"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "--json output with standard envelope"
+status = "done"
+category = "added"

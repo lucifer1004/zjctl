@@ -302,6 +302,44 @@ impl PaneStatus {
     }
 }
 
+pub fn grep(
+    plugin: Option<&str>,
+    selector: &str,
+    pattern: &str,
+    full: bool,
+    json: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (kind, value) = if pattern.starts_with('/') && pattern.ends_with('/') && pattern.len() > 2 {
+        ("regex", &pattern[1..pattern.len() - 1])
+    } else {
+        ("substring", pattern)
+    };
+
+    let params = serde_json::json!({
+        "selector": selector,
+        "pattern": { "kind": kind, "value": value },
+        "full": full,
+    });
+
+    let result = client::rpc_call(plugin, methods::PANE_SEARCH, params)?;
+    let matches = result["matches"].as_array();
+    let match_count = result["match_count"].as_u64().unwrap_or(0);
+
+    if json {
+        output::print_success(result);
+    } else if match_count == 0 {
+        // No output, exit silently (like grep)
+        std::process::exit(1);
+    } else if let Some(lines) = matches {
+        for m in lines {
+            let line_num = m["line_number"].as_u64().unwrap_or(0);
+            let text = m["text"].as_str().unwrap_or("");
+            println!("{}: {}", line_num, text);
+        }
+    }
+    Ok(())
+}
+
 pub fn tag(
     plugin: Option<&str>,
     selector: &str,
@@ -1200,6 +1238,36 @@ mod tests {
 
         let err = find_new_pane(&before, &after).expect_err("expected error");
         assert_eq!(err, "2 new panes detected");
+    }
+
+    #[test]
+    fn grep_pattern_plain_is_substring() {
+        // Plain text should be treated as substring search
+        let pattern = "BUILD SUCCESS";
+        assert!(!pattern.starts_with('/') || !pattern.ends_with('/'));
+    }
+
+    #[test]
+    fn grep_pattern_regex_detected() {
+        let pattern = "/error:.*/";
+        assert!(pattern.starts_with('/') && pattern.ends_with('/') && pattern.len() > 2);
+        let inner = &pattern[1..pattern.len() - 1];
+        assert_eq!(inner, "error:.*");
+    }
+
+    #[test]
+    fn grep_parse_search_result() {
+        let result = serde_json::json!({
+            "pane_id": "terminal:3",
+            "matches": [
+                {"line_number": 5, "text": "error: something failed"},
+                {"line_number": 12, "text": "error: another failure"},
+            ],
+            "match_count": 2,
+        });
+        assert_eq!(result["match_count"], 2);
+        assert_eq!(result["matches"][0]["line_number"], 5);
+        assert_eq!(result["matches"][1]["text"], "error: another failure");
     }
 
     #[test]

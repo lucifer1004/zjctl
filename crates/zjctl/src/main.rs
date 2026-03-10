@@ -490,6 +490,17 @@ enum PaneCommands {
         #[arg(long, default_value = "30.0")]
         timeout: f64,
     },
+    /// Search pane output for a pattern
+    Grep {
+        /// Pane selector
+        #[arg(long)]
+        pane: String,
+        /// Pattern to search for (plain text or /regex/)
+        pattern: String,
+        /// Include scrollback history
+        #[arg(long)]
+        full: bool,
+    },
     /// Set or remove a tag on a pane
     Tag {
         /// Pane selector
@@ -689,6 +700,9 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             PaneCommands::WaitExit { pane, timeout } => {
                 commands::pane::wait_exit(plugin, &pane, timeout, json)?;
+            }
+            PaneCommands::Grep { pane, pattern, full } => {
+                commands::pane::grep(plugin, &pane, &pattern, full, json)?;
             }
             PaneCommands::Tag { pane, key, remove } => {
                 commands::pane::tag(plugin, &pane, &key, remove, json)?;

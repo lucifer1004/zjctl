@@ -128,6 +128,7 @@ pub mod methods {
     pub const PANE_STATUS: &str = "pane.status";
     pub const TABS_LIST: &str = "tabs.list";
     pub const PANE_TAG: &str = "pane.tag";
+    pub const PANE_SEARCH: &str = "pane.search";
     pub const BATCH: &str = "batch";
 }
 
