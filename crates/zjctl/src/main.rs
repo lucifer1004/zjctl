@@ -233,6 +233,11 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Tab management
+    Tab {
+        #[command(subcommand)]
+        cmd: TabCommands,
+    },
     /// Session management
     Sessions {
         #[command(subcommand)]
@@ -293,6 +298,39 @@ enum SessionsCommands {
     Kill {
         /// Session name
         name: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum TabCommands {
+    /// List all tabs
+    Ls {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Create a new tab
+    New {
+        /// Tab name
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Focus a tab by index or name
+    Focus {
+        /// Tab index (0-based) or name
+        target: String,
+    },
+    /// Rename a tab
+    Rename {
+        /// Tab index (0-based)
+        index: usize,
+        /// New name
+        name: String,
+    },
+    /// Close a tab
+    Close {
+        /// Tab index (0-based)
+        index: usize,
     },
 }
 
@@ -507,6 +545,23 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let json = cli.json;
 
     match cli.command {
+        Commands::Tab { cmd } => match cmd {
+            TabCommands::Ls { json: local } => {
+                commands::tab::ls(plugin, json || local)?;
+            }
+            TabCommands::New { name } => {
+                commands::tab::new(name.as_deref(), json)?;
+            }
+            TabCommands::Focus { target } => {
+                commands::tab::focus(&target, json)?;
+            }
+            TabCommands::Rename { index, name } => {
+                commands::tab::rename(index, &name, json)?;
+            }
+            TabCommands::Close { index } => {
+                commands::tab::close(index, json)?;
+            }
+        },
         Commands::Sessions { cmd } => match cmd {
             SessionsCommands::Ls { json: local } => {
                 commands::sessions::ls(json || local)?;

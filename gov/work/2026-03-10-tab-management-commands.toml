@@ -1,0 +1,42 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-005"
+title = "Tab management commands"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = ["RFC-0001"]
+
+[content]
+description = """
+Agents running multi-task workflows need to organize panes into tabs. This work item adds a `tab` subcommand group with tab lifecycle operations: list (via tabs.list RPC), create, focus, rename, and close (via zellij action commands)."""
+
+[[content.acceptance_criteria]]
+text = "zjctl tab ls lists all tabs with index, name, and active status"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl tab new [--name <name>] creates a new tab"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl tab focus <index-or-name> switches to a tab"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl tab rename <index> <name> renames a tab"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl tab close <index> closes a tab"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "all tab commands support --json output"
+status = "done"
+category = "added"

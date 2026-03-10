@@ -126,6 +126,7 @@ pub mod methods {
     pub const PANE_RESIZE: &str = "pane.resize";
     pub const PANE_CAPTURE: &str = "pane.capture";
     pub const PANE_STATUS: &str = "pane.status";
+    pub const TABS_LIST: &str = "tabs.list";
 }
 
 #[cfg(test)]

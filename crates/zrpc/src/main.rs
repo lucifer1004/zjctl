@@ -200,6 +200,7 @@ impl ZrpcPlugin {
             methods::PANE_RESIZE => self.handle_pane_resize(&request),
             methods::PANE_CAPTURE => self.handle_pane_capture(&request),
             methods::PANE_STATUS => self.handle_pane_status(&request),
+            methods::TABS_LIST => self.handle_tabs_list(),
             _ => Err(RpcError::new(
                 RpcErrorCode::MethodNotFound,
                 format!("unknown method: {}", request.method),
@@ -411,6 +412,15 @@ impl ZrpcPlugin {
         }
 
         Ok(serde_json::json!({ "resized": pane.id_string() }))
+    }
+
+    fn handle_tabs_list(&self) -> Result<serde_json::Value, RpcError> {
+        serde_json::to_value(&self.state.tabs).map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::Internal,
+                format!("serialization error: {}", e),
+            )
+        })
     }
 
     fn handle_pane_status(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {

@@ -7,3 +7,4 @@ pub mod pane;
 pub mod panes;
 pub mod sessions;
 pub mod status;
+pub mod tab;

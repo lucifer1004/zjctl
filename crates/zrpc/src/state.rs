@@ -67,8 +67,7 @@ impl PaneEntry {
 }
 
 /// Information about a tab
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TabEntry {
     pub index: usize,
     pub name: String,
