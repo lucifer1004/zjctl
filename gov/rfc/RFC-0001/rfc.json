@@ -11,7 +11,10 @@
   "updated": "2026-03-10",
   "sections": [
     {
-      "title": "Summary"
+      "title": "Summary",
+      "clauses": [
+        "clauses/C-SUMMARY.json"
+      ]
     },
     {
       "title": "Specification"

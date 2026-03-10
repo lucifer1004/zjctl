@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-SUMMARY",
+  "title": "Protocol Overview",
+  "kind": "informative",
+  "status": "active",
+  "since": "0.1.0",
+  "text": "This RFC specifies the RPC protocol used between the zjctl CLI and the zrpc WASM plugin running inside Zellij. The protocol enables programmatic control of Zellij panes — listing, sending input, focusing, renaming, and resizing — from external processes.\n\nThe protocol uses JSON-RPC-style messages transported over Zellij's pipe mechanism. Each request carries a UUID for correlation, a method name, and optional parameters. Responses indicate success or failure with structured error codes. Panes are addressed using a selector DSL that supports numeric IDs, title/command pattern matching, regex, positional addressing, and focus-based selection.\n\nThis specification codifies the protocol as implemented in zjctl v0.1.x. It serves as the contract between any CLI client and any compatible plugin implementation, enabling independent evolution of both sides as long as they conform to these clauses."
+}
