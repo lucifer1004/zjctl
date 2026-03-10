@@ -1,0 +1,34 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-10-006"
+title = "Batch RPC API for multi-pane operations"
+status = "active"
+created = "2026-03-10"
+started = "2026-03-10"
+refs = ["RFC-0001"]
+
+[content]
+description = """
+Agents managing many panes make sequential RPC calls, each incurring pipe round-trip latency. This work item adds a `batch` RPC method that accepts an array of requests and returns an array of responses in one pipe round-trip.
+
+The CLI exposes this via `zjctl batch` which reads a JSON array of operations from stdin and outputs a JSON array of results."""
+
+[[content.acceptance_criteria]]
+text = "batch RPC method accepts array of {method, params} and returns array of results"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl batch reads JSON array from stdin, sends as single RPC, outputs results array"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "individual operation failures do not abort the batch; each result has its own ok/error"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "batch --json wraps output in standard envelope"
+status = "done"
+category = "added"

@@ -1,6 +1,7 @@
 //! Command implementations
 
 pub mod action;
+pub mod batch;
 pub mod doctor;
 pub mod install;
 pub mod pane;

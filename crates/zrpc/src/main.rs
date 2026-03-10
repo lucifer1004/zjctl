@@ -12,7 +12,8 @@ Use: cargo build -p zjctl-zrpc --target wasm32-wasip1 --release"
 use std::collections::BTreeMap;
 use zellij_tile::prelude::*;
 use zjctl_proto::{
-    methods, PaneSelector, PaneType, RpcError, RpcErrorCode, RpcRequest, RpcResponse,
+    methods, BatchOp, BatchResult, PaneSelector, PaneType, RpcError, RpcErrorCode, RpcRequest,
+    RpcResponse,
 };
 
 mod state;
@@ -192,19 +193,10 @@ impl ZrpcPlugin {
     }
 
     fn handle_request(&mut self, pipe_id: &str, request: RpcRequest) {
-        let result = match request.method.as_str() {
-            methods::PANES_LIST => self.handle_panes_list(&request),
-            methods::PANE_SEND => self.handle_pane_send(&request),
-            methods::PANE_FOCUS => self.handle_pane_focus(&request),
-            methods::PANE_RENAME => self.handle_pane_rename(&request),
-            methods::PANE_RESIZE => self.handle_pane_resize(&request),
-            methods::PANE_CAPTURE => self.handle_pane_capture(&request),
-            methods::PANE_STATUS => self.handle_pane_status(&request),
-            methods::TABS_LIST => self.handle_tabs_list(),
-            _ => Err(RpcError::new(
-                RpcErrorCode::MethodNotFound,
-                format!("unknown method: {}", request.method),
-            )),
+        let result = if request.method == methods::BATCH {
+            self.handle_batch(&request)
+        } else {
+            self.dispatch_method(&request)
         };
 
         match result {
@@ -412,6 +404,66 @@ impl ZrpcPlugin {
         }
 
         Ok(serde_json::json!({ "resized": pane.id_string() }))
+    }
+
+    fn handle_batch(&mut self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
+        let ops: Vec<BatchOp> = serde_json::from_value(request.params["ops"].clone()).map_err(
+            |e| {
+                RpcError::new(
+                    RpcErrorCode::InvalidParams,
+                    format!("invalid 'ops' array: {}", e),
+                )
+            },
+        )?;
+
+        let results: Vec<BatchResult> = ops
+            .iter()
+            .map(|op| {
+                let sub_request = RpcRequest {
+                    v: request.v,
+                    id: request.id,
+                    method: op.method.clone(),
+                    params: op.params.clone(),
+                };
+                match self.dispatch_method(&sub_request) {
+                    Ok(value) => BatchResult {
+                        ok: true,
+                        result: Some(value),
+                        error: None,
+                    },
+                    Err(error) => BatchResult {
+                        ok: false,
+                        result: None,
+                        error: Some(error),
+                    },
+                }
+            })
+            .collect();
+
+        serde_json::to_value(&results).map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::Internal,
+                format!("serialization error: {}", e),
+            )
+        })
+    }
+
+    /// Dispatch a single method — used by both handle_request and handle_batch.
+    fn dispatch_method(&mut self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
+        match request.method.as_str() {
+            methods::PANES_LIST => self.handle_panes_list(request),
+            methods::PANE_SEND => self.handle_pane_send(request),
+            methods::PANE_FOCUS => self.handle_pane_focus(request),
+            methods::PANE_RENAME => self.handle_pane_rename(request),
+            methods::PANE_RESIZE => self.handle_pane_resize(request),
+            methods::PANE_CAPTURE => self.handle_pane_capture(request),
+            methods::PANE_STATUS => self.handle_pane_status(request),
+            methods::TABS_LIST => self.handle_tabs_list(),
+            _ => Err(RpcError::new(
+                RpcErrorCode::MethodNotFound,
+                format!("unknown method: {}", request.method),
+            )),
+        }
     }
 
     fn handle_tabs_list(&self) -> Result<serde_json::Value, RpcError> {

@@ -127,6 +127,25 @@ pub mod methods {
     pub const PANE_CAPTURE: &str = "pane.capture";
     pub const PANE_STATUS: &str = "pane.status";
     pub const TABS_LIST: &str = "tabs.list";
+    pub const BATCH: &str = "batch";
+}
+
+/// A single operation within a batch request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchOp {
+    pub method: String,
+    #[serde(default)]
+    pub params: serde_json::Value,
+}
+
+/// Result of a single operation within a batch response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchResult {
+    pub ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<RpcError>,
 }
 
 #[cfg(test)]
@@ -209,5 +228,48 @@ mod tests {
 
         let error2: RpcError = serde_json::from_str(&json).unwrap();
         assert_eq!(error2.code, RpcErrorCode::AmbiguousMatch);
+    }
+
+    #[test]
+    fn test_batch_op_serialization() {
+        let ops = vec![
+            BatchOp {
+                method: "pane.focus".to_string(),
+                params: serde_json::json!({"selector": "id:terminal:1"}),
+            },
+            BatchOp {
+                method: "panes.list".to_string(),
+                params: serde_json::Value::Null,
+            },
+        ];
+        let json = serde_json::to_string(&ops).unwrap();
+        let ops2: Vec<BatchOp> = serde_json::from_str(&json).unwrap();
+        assert_eq!(ops2.len(), 2);
+        assert_eq!(ops2[0].method, "pane.focus");
+        assert_eq!(ops2[1].method, "panes.list");
+    }
+
+    #[test]
+    fn test_batch_result_success_and_error() {
+        let results = vec![
+            BatchResult {
+                ok: true,
+                result: Some(serde_json::json!({"focused": "terminal:1"})),
+                error: None,
+            },
+            BatchResult {
+                ok: false,
+                result: None,
+                error: Some(RpcError::new(RpcErrorCode::NoMatch, "no panes match")),
+            },
+        ];
+        let json = serde_json::to_string(&results).unwrap();
+        let results2: Vec<BatchResult> = serde_json::from_str(&json).unwrap();
+        assert!(results2[0].ok);
+        assert!(!results2[1].ok);
+        assert_eq!(
+            results2[1].error.as_ref().unwrap().code,
+            RpcErrorCode::NoMatch
+        );
     }
 }
