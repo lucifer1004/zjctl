@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-PANE-RESIZE",
+  "title": "Method: pane.resize",
+  "kind": "normative",
+  "status": "active",
+  "text": "Method name: `pane.resize`\n\nParameters (REQUIRED):\n\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `selector` | string | REQUIRED | A pane selector string per [[RFC-0001:C-SELECTORS]]. |\n| `resize_type` | string | REQUIRED | Either `\"increase\"` or `\"decrease\"`. |\n| `direction` | string or null | OPTIONAL | One of `\"left\"`, `\"right\"`, `\"up\"`, `\"down\"`, or `null` for undirected resize. |\n| `step` | integer | OPTIONAL | Number of resize steps to apply. Defaults to `1`. MUST be >= 1. |\n\nThe plugin MUST resolve the selector to exactly one pane. If zero panes match, the plugin MUST return `no_match`. If multiple panes match, the plugin MUST return `ambiguous_match`.\n\nThe plugin MUST construct a `ResizeStrategy` with `invert_on_boundaries` set to `true` and call `resize_pane_with_id` once per step.\n\nIf `resize_type` is not `\"increase\"` or `\"decrease\"`, the plugin MUST return `invalid_params`. If `direction` is provided and is not one of the four valid values, the plugin MUST return `invalid_params`.\n\nOn success, the response MUST contain `{\"resized\": \"<pane_id>\"}`.",
+  "since": "0.1.0"
+}

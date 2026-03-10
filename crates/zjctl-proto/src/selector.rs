@@ -18,7 +18,7 @@ pub enum SelectorError {
     InvalidRegex(#[from] regex::Error),
 }
 
-/// Pane selector for addressing panes
+/// Pane selector for addressing panes — implements [[RFC-0001:C-SELECTORS]]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PaneSelector {

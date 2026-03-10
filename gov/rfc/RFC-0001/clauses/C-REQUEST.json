@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-REQUEST",
+  "title": "Request Message Format",
+  "kind": "normative",
+  "status": "active",
+  "text": "An RPC request MUST be a JSON object with the following fields:\n\n- `v` (integer, REQUIRED): Protocol version. MUST be `1`.\n- `id` (string, REQUIRED): A UUID v4 uniquely identifying the request. Clients MUST generate a new UUID for each request.\n- `method` (string, REQUIRED): The RPC method name to invoke.\n- `params` (object or null, OPTIONAL): Method-specific parameters. If omitted, defaults to `null`.\n\nExample:\n```json\n{\"v\":1,\"id\":\"550e8400-e29b-41d4-a716-446655440000\",\"method\":\"panes.list\",\"params\":null}\n```\n\nImplementations MUST reject requests where `v` is not `1` with an `invalid_request` error.",
+  "since": "0.1.0"
+}

@@ -4,7 +4,10 @@ id = "ADR-0001"
 title = "JSON-RPC over Zellij Pipes as transport mechanism"
 status = "accepted"
 date = "2026-03-10"
-refs = ["ADR-0002"]
+refs = [
+    "ADR-0002",
+    "RFC-0001",
+]
 
 [content]
 context = "zjctl needs a transport mechanism for the CLI to communicate with a component running inside Zellij that has access to pane state and operations. Zellij provides a pipe mechanism (`zellij pipe`) that allows CLI processes to send messages to plugins and receive responses via stdout. The transport must work without additional infrastructure (no separate daemon, no sockets) and must function within the Zellij security sandbox."

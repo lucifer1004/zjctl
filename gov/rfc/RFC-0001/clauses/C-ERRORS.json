@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-ERRORS",
+  "title": "Error Codes",
+  "kind": "normative",
+  "status": "active",
+  "text": "Error responses MUST use one of the following error codes in the `error.code` field. Codes MUST be serialized as snake_case strings.\n\n| Code | Meaning |\n|------|---------|\n| `invalid_request` | The request JSON was malformed or the protocol version is unsupported. |\n| `method_not_found` | The `method` field does not match any known RPC method. |\n| `invalid_params` | The `params` field is missing required parameters or contains invalid values. |\n| `no_match` | A pane selector resolved to zero matching panes. |\n| `ambiguous_match` | A pane selector resolved to multiple panes and the `all` flag was not set. |\n| `internal` | An unexpected internal error occurred in the plugin. |\n\nImplementations MUST NOT invent new error codes without updating this specification. The `error.message` field MUST contain a human-readable description of the error.",
+  "since": "0.1.0"
+}

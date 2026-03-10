@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Protocol version
+/// Protocol version — implements [[RFC-0001:C-REQUEST]]
 pub const PROTOCOL_VERSION: u8 = 1;
 
 /// RPC request sent from zjctl CLI to zrpc plugin
@@ -98,7 +98,7 @@ impl RpcError {
     }
 }
 
-/// Standard RPC error codes
+/// Standard RPC error codes — implements [[RFC-0001:C-ERRORS]]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RpcErrorCode {
@@ -116,7 +116,8 @@ pub enum RpcErrorCode {
     Internal,
 }
 
-/// RPC methods
+/// RPC methods — implements [[RFC-0001:C-PANES-LIST]], [[RFC-0001:C-PANE-SEND]],
+/// [[RFC-0001:C-PANE-FOCUS]], [[RFC-0001:C-PANE-RENAME]], [[RFC-0001:C-PANE-RESIZE]]
 pub mod methods {
     pub const PANES_LIST: &str = "panes.list";
     pub const PANE_SEND: &str = "pane.send";

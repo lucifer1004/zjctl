@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-PANE-SEND",
+  "title": "Method: pane.send",
+  "kind": "normative",
+  "status": "active",
+  "text": "Method name: `pane.send`\n\nParameters (REQUIRED):\n\n| Field | Type | Required | Description |\n|-------|------|----------|-------------|\n| `selector` | string | REQUIRED | A pane selector string per [[RFC-0001:C-SELECTORS]]. |\n| `text` | string | REQUIRED | The text to send to the pane's stdin. |\n| `all` | boolean | OPTIONAL | If `true`, send to all matching panes. Defaults to `false`. |\n\nThe plugin MUST resolve the selector against its current pane state. If the selector matches zero panes, the plugin MUST return a `no_match` error. If the selector matches multiple panes and `all` is not `true`, the plugin MUST return an `ambiguous_match` error.\n\nFor each matched pane, the plugin MUST call `write_chars_to_pane_id` with the provided text. The text MUST be sent verbatim — the plugin MUST NOT interpret escape sequences or append newlines.\n\nOn success, the response MUST contain `{\"sent_to\": N}` where `N` is the number of panes that received input.",
+  "since": "0.1.0"
+}

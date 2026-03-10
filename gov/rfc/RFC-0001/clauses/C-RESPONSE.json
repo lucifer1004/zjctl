@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-RESPONSE",
+  "title": "Response Message Format",
+  "kind": "normative",
+  "status": "active",
+  "text": "An RPC response MUST be a JSON object with the following fields:\n\n- `v` (integer, REQUIRED): Protocol version. MUST be `1`.\n- `id` (string, REQUIRED): The UUID from the corresponding request. The plugin MUST echo the request's `id` field.\n- `ok` (boolean, REQUIRED): `true` if the request succeeded, `false` otherwise.\n- `result` (any, OPTIONAL): Present when `ok` is `true`. Contains method-specific result data.\n- `error` (object, OPTIONAL): Present when `ok` is `false`. MUST contain `code` (string) and `message` (string) fields.\n\nA response MUST NOT have both `result` and `error` populated. When `ok` is `true`, `error` SHOULD be omitted. When `ok` is `false`, `result` SHOULD be omitted.\n\nAfter sending the response, the plugin MUST call `unblock_cli_pipe_input` to signal completion to the pipe.",
+  "since": "0.1.0"
+}

@@ -1,0 +1,57 @@
+{
+  "rfc_id": "RFC-0001",
+  "title": "zjctl RPC Protocol",
+  "version": "0.1.0",
+  "status": "normative",
+  "phase": "stable",
+  "owners": [
+    "@Zihua Wu"
+  ],
+  "created": "2026-03-10",
+  "updated": "2026-03-10",
+  "sections": [
+    {
+      "title": "Summary"
+    },
+    {
+      "title": "Specification"
+    },
+    {
+      "title": "Transport",
+      "clauses": [
+        "clauses/C-TRANSPORT.json"
+      ]
+    },
+    {
+      "title": "Messages",
+      "clauses": [
+        "clauses/C-REQUEST.json",
+        "clauses/C-RESPONSE.json",
+        "clauses/C-ERRORS.json"
+      ]
+    },
+    {
+      "title": "Selectors",
+      "clauses": [
+        "clauses/C-SELECTORS.json"
+      ]
+    },
+    {
+      "title": "Methods",
+      "clauses": [
+        "clauses/C-PANES-LIST.json",
+        "clauses/C-PANE-SEND.json",
+        "clauses/C-PANE-FOCUS.json",
+        "clauses/C-PANE-RENAME.json",
+        "clauses/C-PANE-RESIZE.json"
+      ]
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-03-10",
+      "notes": "Initial draft"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "clause_id": "C-TRANSPORT",
+  "title": "Transport Layer",
+  "kind": "normative",
+  "status": "active",
+  "text": "Clients MUST send RPC messages to the zrpc plugin using the Zellij pipe mechanism (`zellij pipe`).\n\nThe pipe MUST be addressed with the name `zjctl-rpc`. Clients MUST include the `--plugin` flag specifying the plugin URL and the `--plugin-configuration` flag with a session-scoped configuration string of the form `zjctl_session=<SANITIZED_SESSION_NAME>`.\n\nThe sanitized session name MUST replace any character outside `[a-zA-Z0-9\\-_.]` with `_`.\n\nThe request payload MUST be written to the pipe's stdin as a single JSON line followed by a newline. The response MUST be read from the pipe's stdout. The pipe process MUST be waited on until completion.\n\nOnly `PipeSource::Cli` messages MUST be handled by the plugin; messages from other pipe sources MUST be ignored.",
+  "since": "0.1.0"
+}

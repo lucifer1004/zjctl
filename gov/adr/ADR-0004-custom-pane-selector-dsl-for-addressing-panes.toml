@@ -4,7 +4,10 @@ id = "ADR-0004"
 title = "Custom pane selector DSL for addressing panes"
 status = "accepted"
 date = "2026-03-10"
-refs = ["ADR-0002"]
+refs = [
+    "ADR-0002",
+    "RFC-0001",
+]
 
 [content]
 context = "Users and agents need to address specific panes when issuing commands. Zellij identifies panes internally by numeric IDs and type (terminal vs plugin), but users also think about panes by title, running command, position, or focus state. The project needs a human-friendly, scriptable way to target panes that works across different workflows (interactive use, shell scripts, agent automation)."

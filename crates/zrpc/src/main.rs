@@ -19,7 +19,7 @@ mod state;
 
 use state::PluginState;
 
-/// Expected pipe name for RPC messages
+/// Expected pipe name for RPC messages — per [[RFC-0001:C-TRANSPORT]]
 const RPC_PIPE_NAME: &str = "zjctl-rpc";
 const CLIENT_POLL_SECS: f64 = 0.2;
 

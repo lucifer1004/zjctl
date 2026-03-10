@@ -173,7 +173,7 @@ impl PluginState {
     }
 }
 
-/// Pane info for list response
+/// Pane info for list response — implements [[RFC-0001:C-PANES-LIST]]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaneListItem {
     pub id: String,
