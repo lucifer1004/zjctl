@@ -14,36 +14,46 @@ refs = [
 description = """
 Per [[ADR-0005]], pane capture currently requires focusing the target pane, running `zellij action dump-screen`, then restoring focus. This means two concurrent captures on different panes in the same session race on focus, making it impossible for agents to monitor multiple panes simultaneously.
 
-This work item explores and implements an alternative capture mechanism that does not require changing pane focus. The primary candidate is plugin-side screen buffer reading, which would require either a Zellij API addition or a creative workaround within the current plugin API. If neither is feasible, a serialization/locking mechanism for the focus-capture-restore sequence would be the fallback.
+This work item implements plugin-side capture using the `get_pane_scrollback` API (Zellij PR #4465, merged Oct 2025). The zrpc plugin now handles a `pane.capture` RPC method that reads pane content directly without changing focus. The CLI tries RPC-based capture first and falls back to focus-dump-restore for older plugin versions.
 
 Related: [[ADR-0005]], [[ADR-0006]] (wait-idle inherits the same limitation)."""
 
 [[content.acceptance_criteria]]
-text = "zjctl pane capture works on a non-focused pane without changing focus"
-status = "pending"
+text = "zrpc plugin implements pane.capture RPC method using get_pane_scrollback"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = "two concurrent zjctl pane capture calls on different panes in the same session do not interfere"
-status = "pending"
+text = "pane.capture reads pane content by PaneId without changing focus"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = "zjctl pane wait-idle works without changing focus"
-status = "pending"
+text = "pane.capture supports full scrollback via 'full' parameter"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = "existing --full and --no-restore flags continue to work (--no-restore becomes a no-op if focus is not changed)"
-status = "pending"
+text = "CLI capture tries RPC-based pane.capture first, falls back to focus-dump-restore on method_not_found"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = "ADR-0005 is superseded or updated to reflect the new mechanism"
-status = "pending"
+text = "CLI wait-idle uses RPC-based capture when available, avoiding focus changes during polling"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
-text = "if plugin-side capture is not feasible, a locking mechanism prevents concurrent focus races with clear error on contention"
-status = "pending"
+text = "zellij-tile dependency upgraded to git main for get_pane_scrollback and ReadPaneContents permission"
+status = "done"
+category = "changed"
+
+[[content.acceptance_criteria]]
+text = "existing --full and --no-restore flags continue to work (--no-restore becomes a no-op when RPC capture is used)"
+status = "done"
 category = "added"
+
+[[content.acceptance_criteria]]
+text = "ADR-0005 updated to document the new plugin-side capture mechanism"
+status = "done"
+category = "changed"

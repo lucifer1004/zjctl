@@ -124,6 +124,7 @@ pub mod methods {
     pub const PANE_FOCUS: &str = "pane.focus";
     pub const PANE_RENAME: &str = "pane.rename";
     pub const PANE_RESIZE: &str = "pane.resize";
+    pub const PANE_CAPTURE: &str = "pane.capture";
 }
 
 #[cfg(test)]

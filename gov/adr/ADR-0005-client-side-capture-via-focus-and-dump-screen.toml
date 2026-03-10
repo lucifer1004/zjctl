@@ -1,7 +1,7 @@
 [govctl]
 schema = 1
 id = "ADR-0005"
-title = "Client-side capture via focus and dump-screen"
+title = "Pane capture: plugin-side get_pane_scrollback with focus-dump-screen fallback"
 status = "accepted"
 date = "2026-03-10"
 refs = [
@@ -11,46 +11,69 @@ refs = [
 ]
 
 [content]
-context = "zjctl needs to capture the rendered output of arbitrary panes. Zellij's plugin API does not expose a per-pane screen capture method; the only available mechanism is `zellij action dump-screen`, which dumps the currently focused pane's content to a file. This means capturing a non-focused pane requires first focusing it, dumping, then optionally restoring the previous focus."
-decision = """
-We will implement capture by: (1) resolving the target pane's stable selector, (2) recording the currently focused pane for later restoration, (3) focusing the target pane via RPC, (4) running `zellij action dump-screen` to a temp file, (5) reading and deleting the temp file, (6) restoring focus to the original pane (unless `--no-restore`).
+context = """zjctl needs to capture the rendered output of arbitrary panes. The original mechanism was `zellij action dump-screen`, which only dumps the focused pane's content — requiring a focus-capture-restore dance that races when multiple agents capture concurrently.
 
-This was chosen because `zellij action dump-screen` is the only available mechanism for reading pane content, and it only operates on the currently focused pane. The focus-restore dance minimizes disruption to the user."""
+Zellij PR #4465 (merged Oct 2025, available on main) introduced `get_pane_scrollback(PaneId, bool)` in the plugin API, which reads any pane's content without changing focus. This is gated behind the `ReadPaneContents` permission."""
+decision = """
+We will implement a two-tier capture strategy:
+
+1. **Primary (plugin-side):** The zrpc plugin exposes a `pane.capture` RPC method that calls `get_pane_scrollback(pane_id, full)`. This reads viewport (and optionally scrollback) without any focus change, enabling concurrent captures.
+
+2. **Fallback (client-side):** If the plugin returns `method_not_found` (older plugin version), the CLI falls back to the original focus-dump-restore sequence: resolve target selector, focus, `zellij action dump-screen`, restore.
+
+The `zellij-tile` dependency is pinned to Zellij's git `main` branch until a release includes `get_pane_scrollback`. The plugin requests `ReadPaneContents` permission in addition to existing permissions."""
 consequences = """
 ### Positive
-- Works with any pane regardless of type (terminal or plugin)
-- Supports both visible screen and full scrollback capture
-- Focus-restore minimizes user disruption
+- Concurrent captures on different panes no longer conflict — no focus changes needed
+- `wait-idle` can poll without disrupting user's focus
+- Graceful degradation: works with older plugin versions via fallback
+- Enables scaling to monitoring many panes simultaneously
 
 ### Negative
-- Concurrent captures on different panes in the same session conflict — they race on focus
-- The focus-dump-restore sequence is not atomic, creating a window for interference
-- Capturing a pane momentarily shifts the user's view if they are watching
-- Temp file I/O adds latency and creates cleanup obligations
-- Cannot scale to monitoring many panes simultaneously
+- Depends on unreleased Zellij code (git main) until v0.44+ ships
+- Plugin-side content is line-based (Vec<String>) rather than raw terminal bytes — ANSI escapes may differ from dump-screen output
+- New `ReadPaneContents` permission must be granted by the user
 
 ### Neutral
-- `--no-restore` flag gives callers control over the focus side-effect
-- Capture returns raw terminal content including ANSI escape sequences"""
+- `--no-restore` flag becomes a no-op when RPC capture is used (no focus change to restore)
+- `--full` maps directly to `get_full_scrollback` parameter"""
 
 [[content.alternatives]]
-text = "Chosen: Client-side focus + dump-screen + restore"
+text = "Chosen: Plugin-side get_pane_scrollback with client-side fallback"
 status = "accepted"
 pros = [
-    "Works with current Zellij API; no plugin changes needed",
+    "No focus change needed; fully concurrent-safe",
+    "Done entirely via RPC — no temp files or shell commands",
+    "Graceful fallback for older plugin versions",
+]
+cons = [
+    "Requires unreleased Zellij API (git main)",
+    "Line-based output may differ slightly from dump-screen raw bytes",
+]
+
+[[content.alternatives]]
+text = "Superseded: Client-side focus + dump-screen + restore (original ADR-0005)"
+status = "rejected"
+pros = [
+    "Works with released Zellij API; no plugin changes needed",
     "Supports both visible and full scrollback",
 ]
 cons = [
     "Requires focusing the pane; not concurrent-safe",
     "Not atomic; race window during focus-dump-restore",
 ]
+rejection_reason = "Superseded by plugin-side capture which eliminates the focus race. Retained as fallback path."
 
 [[content.alternatives]]
-text = "Rejected: Plugin-side screen buffer reading"
+text = "Rejected: CLI-side file locking to serialize captures"
 status = "rejected"
 pros = [
-    "No focus change needed; concurrent-safe",
-    "Could be done entirely via RPC",
+    "Works with current released Zellij API",
+    "Prevents data corruption from concurrent captures",
 ]
-cons = ["Zellij plugin API does not expose per-pane screen buffer content"]
-rejection_reason = "The zellij-tile API does not provide a method to read pane screen content from a plugin"
+cons = [
+    "Still requires focus changes — user sees flicker",
+    "Serializes all captures, eliminating concurrency benefits",
+    "Lock contention could cause timeouts",
+]
+rejection_reason = "Eliminates concurrency rather than solving the root cause"

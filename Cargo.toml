@@ -29,8 +29,8 @@ regex = "1.0"
 # CLI
 clap = { version = "4.0", features = ["derive", "env"] }
 
-# Plugin
-zellij-tile = "0.43"
+# Plugin — pinned to main for get_pane_scrollback (PR #4465, merged Oct 2025, not yet released)
+zellij-tile = { git = "https://github.com/zellij-org/zellij", branch = "main" }
 
 # Internal
 zjctl-proto = { path = "crates/zjctl-proto", version = "0.1.3" }

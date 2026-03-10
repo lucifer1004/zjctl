@@ -43,6 +43,7 @@ impl ZellijPlugin for ZrpcPlugin {
             PermissionType::WriteToStdin,
             PermissionType::ChangeApplicationState,
             PermissionType::ReadCliPipes,
+            PermissionType::ReadPaneContents,
         ]);
 
         // Subscribe to state updates
@@ -197,6 +198,7 @@ impl ZrpcPlugin {
             methods::PANE_FOCUS => self.handle_pane_focus(&request),
             methods::PANE_RENAME => self.handle_pane_rename(&request),
             methods::PANE_RESIZE => self.handle_pane_resize(&request),
+            methods::PANE_CAPTURE => self.handle_pane_capture(&request),
             _ => Err(RpcError::new(
                 RpcErrorCode::MethodNotFound,
                 format!("unknown method: {}", request.method),
@@ -298,7 +300,7 @@ impl ZrpcPlugin {
 
         let pane = &panes[0];
         // should_float_if_hidden: bring floating panes to view if they're hidden
-        focus_pane_with_id(pane.pane_id(), true);
+        focus_pane_with_id(pane.pane_id(), true, false);
 
         Ok(serde_json::json!({ "focused": pane.id_string() }))
     }
@@ -408,6 +410,59 @@ impl ZrpcPlugin {
         }
 
         Ok(serde_json::json!({ "resized": pane.id_string() }))
+    }
+
+    fn handle_pane_capture(&self, request: &RpcRequest) -> Result<serde_json::Value, RpcError> {
+        let selector_str = request.params["selector"]
+            .as_str()
+            .ok_or_else(|| RpcError::new(RpcErrorCode::InvalidParams, "missing 'selector'"))?;
+        let full = request.params["full"].as_bool().unwrap_or(false);
+
+        let selector: PaneSelector = selector_str.parse().map_err(|e| {
+            RpcError::new(
+                RpcErrorCode::InvalidParams,
+                format!("invalid selector: {}", e),
+            )
+        })?;
+
+        let panes = self.resolve_selector(&selector)?;
+
+        if panes.is_empty() {
+            return Err(RpcError::new(
+                RpcErrorCode::NoMatch,
+                "no panes match selector",
+            ));
+        }
+        if panes.len() > 1 {
+            return Err(RpcError::new(
+                RpcErrorCode::AmbiguousMatch,
+                format!("{} panes match selector", panes.len()),
+            ));
+        }
+
+        let pane = &panes[0];
+        let contents = get_pane_scrollback(pane.pane_id(), full);
+        match contents {
+            Ok(pane_contents) => {
+                let mut lines: Vec<String> = Vec::new();
+                if full {
+                    lines.extend(pane_contents.lines_above_viewport);
+                }
+                lines.extend(pane_contents.viewport);
+                if full {
+                    lines.extend(pane_contents.lines_below_viewport);
+                }
+                let content = lines.join("\n");
+                Ok(serde_json::json!({
+                    "pane_id": pane.id_string(),
+                    "content": content,
+                }))
+            }
+            Err(e) => Err(RpcError::new(
+                RpcErrorCode::Internal,
+                format!("failed to read pane contents: {}", e),
+            )),
+        }
     }
 
     fn resolve_selector(

@@ -81,6 +81,22 @@ pub fn capture(
     no_restore: bool,
     json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Try plugin-side capture first (no focus change needed).
+    // Falls back to focus-dump-restore if the plugin doesn't support pane.capture.
+    if let Some(content) = try_rpc_capture(plugin, selector, full)? {
+        if json {
+            output::print_success(serde_json::json!({
+                "selector": selector,
+                "content": content,
+            }));
+        } else {
+            let mut stdout = std::io::stdout();
+            stdout.write_all(content.as_bytes())?;
+        }
+        return Ok(());
+    }
+
+    // Fallback: focus-dump-restore (per ADR-0005)
     let selection = resolve_selection(plugin, selector)?;
     let restore = if no_restore {
         None
@@ -91,8 +107,8 @@ pub fn capture(
     focus_target(plugin, &selection.target_selector)?;
     let raw = dump_screen(full)?;
 
-    if let Some(selector) = restore {
-        let _ = focus_target(plugin, &selector);
+    if let Some(sel) = restore {
+        let _ = focus_target(plugin, &sel);
     }
 
     if json {
@@ -106,6 +122,32 @@ pub fn capture(
         stdout.write_all(&raw)?;
     }
     Ok(())
+}
+
+/// Try to capture pane content via the plugin's pane.capture RPC method.
+/// Returns Ok(Some(content)) on success, Ok(None) if the method is not supported,
+/// or Err on other failures.
+fn try_rpc_capture(
+    plugin: Option<&str>,
+    selector: &str,
+    full: bool,
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
+    let params = serde_json::json!({
+        "selector": selector,
+        "full": full,
+    });
+
+    match client::rpc_call(plugin, methods::PANE_CAPTURE, params) {
+        Ok(result) => {
+            let content = result["content"].as_str().unwrap_or("").to_string();
+            Ok(Some(content))
+        }
+        Err(client::ClientError::RpcError(msg)) if msg.contains("unknown method") => {
+            // Plugin doesn't support pane.capture yet — fall back
+            Ok(None)
+        }
+        Err(e) => Err(e.into()),
+    }
 }
 
 pub fn wait_idle(
@@ -124,44 +166,62 @@ pub fn wait_idle(
         return Err("timeout must be greater than 0".into());
     }
 
-    let selection = resolve_selection(plugin, selector)?;
-    let restore = if no_restore {
+    // Try RPC-based capture (no focus change). If the plugin supports pane.capture,
+    // we can poll without touching focus at all.
+    let use_rpc = try_rpc_capture(plugin, selector, full)?.is_some();
+
+    let restore = if use_rpc {
+        // No focus change needed — skip resolve/restore entirely
         None
     } else {
-        selection.restore_selector.clone()
+        let selection = resolve_selection(plugin, selector)?;
+        let restore = if no_restore {
+            None
+        } else {
+            selection.restore_selector.clone()
+        };
+        focus_target(plugin, &selection.target_selector)?;
+        restore
     };
-
-    focus_target(plugin, &selection.target_selector)?;
 
     let idle_duration = Duration::from_secs_f64(idle_time);
     let timeout_duration = Duration::from_secs_f64(timeout);
     let poll_interval = poll_interval(idle_time);
 
+    let capture = |full| -> Result<u64, Box<dyn std::error::Error>> {
+        if use_rpc {
+            let content = try_rpc_capture(plugin, selector, full)?.unwrap_or_default();
+            Ok(hash_bytes(content.as_bytes()))
+        } else {
+            Ok(hash_bytes(&dump_screen(full)?))
+        }
+    };
+
     let start = Instant::now();
     let mut last_change = Instant::now();
-    let mut last_hash = hash_bytes(&dump_screen(full)?);
+    let mut last_hash = capture(full)?;
 
     loop {
         if last_change.elapsed() >= idle_duration {
             break;
         }
         if start.elapsed() >= timeout_duration {
-            if let Some(selector) = restore {
-                let _ = focus_target(plugin, &selector);
+            if let Some(sel) = restore {
+                let _ = focus_target(plugin, &sel);
             }
             return Err(format!("timed out after {timeout:.1}s").into());
         }
 
         sleep(poll_interval);
-        let current_hash = hash_bytes(&dump_screen(full)?);
+        let current_hash = capture(full)?;
         if current_hash != last_hash {
             last_hash = current_hash;
             last_change = Instant::now();
         }
     }
 
-    if let Some(selector) = restore {
-        let _ = focus_target(plugin, &selector);
+    if let Some(sel) = restore {
+        let _ = focus_target(plugin, &sel);
     }
 
     if json {
