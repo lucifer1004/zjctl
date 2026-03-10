@@ -1,4 +1,5 @@
 //! RPC protocol types for zjctl <-> zrpc communication.
+//! Per [[ADR-0001]], uses JSON-RPC with UUID correlation over Zellij pipes.
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

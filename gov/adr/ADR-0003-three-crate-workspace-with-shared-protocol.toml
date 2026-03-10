@@ -1,0 +1,48 @@
+[govctl]
+schema = 1
+id = "ADR-0003"
+title = "Three-crate workspace with shared protocol"
+status = "accepted"
+date = "2026-03-10"
+refs = ["ADR-0002"]
+
+[content]
+context = "zjctl has two build targets: a native CLI binary and a WASM plugin (wasm32-wasip1). Both need to serialize/deserialize the same RPC protocol types and parse the same pane selector syntax. The project needs a code organization strategy that allows sharing types between the two targets while keeping build concerns separate (the WASM crate cannot depend on native-only dependencies and vice versa)."
+decision = """
+We will organize the project as a Cargo workspace with three crates: `zjctl` (CLI binary), `zjctl-proto` (shared protocol library), and `zrpc` (WASM plugin binary).
+
+`zjctl-proto` contains RPC message types (`RpcRequest`, `RpcResponse`, `RpcError`), pane selector parsing (`PaneSelector`, `StringPattern`), and method constants. Both `zjctl` and `zrpc` depend on it. The `zrpc` crate is excluded from `default-members` since it requires the `wasm32-wasip1` target.
+
+This was chosen to enforce type-safe protocol sharing across build targets while keeping native and WASM dependencies isolated."""
+consequences = """
+### Positive
+- Protocol changes are enforced at compile time across both CLI and plugin
+- Clear dependency boundaries — WASM crate never pulls in native-only code
+- Each crate can be versioned and published to crates.io independently
+- `default-members` allows `cargo build` / `cargo test` to work without WASM target installed
+
+### Negative
+- Version coordination required across three crates on each release
+- Contributors must understand the workspace layout and build target constraints
+
+### Neutral
+- `zjctl-proto` is a pure library with no IO, making it easy to test"""
+
+[[content.alternatives]]
+text = "Chosen: Three-crate workspace (zjctl + zjctl-proto + zrpc)"
+status = "accepted"
+pros = [
+    "Type-safe protocol sharing at compile time",
+    "Clean dependency isolation between native and WASM",
+]
+cons = ["Version coordination across three crates"]
+
+[[content.alternatives]]
+text = "Rejected: Single crate with feature flags"
+status = "rejected"
+pros = ["Simpler project structure; one Cargo.toml"]
+cons = [
+    "Feature flags for WASM vs native are error-prone",
+    "Cannot have two binary targets with different build architectures in one crate",
+]
+rejection_reason = "Cargo does not support mixed native + WASM binary targets in a single crate cleanly"

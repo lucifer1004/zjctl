@@ -1,0 +1,53 @@
+[govctl]
+schema = 1
+id = "ADR-0004"
+title = "Custom pane selector DSL for addressing panes"
+status = "accepted"
+date = "2026-03-10"
+refs = ["ADR-0002"]
+
+[content]
+context = "Users and agents need to address specific panes when issuing commands. Zellij identifies panes internally by numeric IDs and type (terminal vs plugin), but users also think about panes by title, running command, position, or focus state. The project needs a human-friendly, scriptable way to target panes that works across different workflows (interactive use, shell scripts, agent automation)."
+decision = """
+We will implement a selector DSL parsed from strings with the following grammar: `id:terminal:N`, `id:plugin:N`, `terminal:N` (shorthand), `plugin:N` (shorthand), `focused`, `title:substring`, `title:/regex/`, `cmd:substring`, `cmd:/regex/`, `tab:N:index:M`.
+
+Selectors are parsed via `FromStr` on `PaneSelector` and serialized as tagged JSON for RPC transport. Title and command patterns support both case-insensitive substring matching and regex. The plugin resolves selectors against its live pane state.
+
+This was chosen to provide a unified, human-readable addressing scheme that works for both interactive CLI use and programmatic automation."""
+consequences = """
+### Positive
+- Human-readable and memorable — `title:server` is easier than `id:terminal:47`
+- Flexible — supports exact IDs, patterns, regex, positional, and focus-based addressing
+- Scriptable — `pane=$(zjctl pane launch -- "zsh")` returns a selector that subsequent commands accept
+- Extensible — new selector types can be added without breaking existing ones
+
+### Negative
+- Ambiguous selectors (title/cmd/regex) can match multiple panes, requiring `--all` or erroring
+- Selector resolution adds an RPC round-trip (CLI must query plugin for matching panes)
+- No stable handle survives pane recreation — if a pane is closed and reopened, the old selector is invalid
+
+### Neutral
+- Selectors are strings, so they compose naturally in shell scripts
+- The `focused` selector is session-global, which can be surprising in multi-tab layouts"""
+
+[[content.alternatives]]
+text = "Chosen: String-based selector DSL with multiple addressing modes"
+status = "accepted"
+pros = [
+    "Human-readable; composable in shell scripts",
+    "Supports exact, pattern, regex, positional, and focus-based addressing",
+]
+cons = [
+    "Ambiguous selectors can match multiple panes",
+    "No stable handle survives pane recreation",
+]
+
+[[content.alternatives]]
+text = "Rejected: Numeric IDs only"
+status = "rejected"
+pros = ["Unambiguous; simple to parse"]
+cons = [
+    "Requires users to discover IDs before every operation",
+    "Not human-friendly for interactive use",
+]
+rejection_reason = "Forces an extra list-then-select step on every operation; poor ergonomics for both humans and agents"

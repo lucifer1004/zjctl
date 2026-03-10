@@ -1,4 +1,5 @@
 //! Pane selector parsing and types.
+//! Per [[ADR-0004]], implements a string-based selector DSL for addressing panes.
 
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;

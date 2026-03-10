@@ -85,7 +85,8 @@ pub fn default_plugin_path() -> PathBuf {
     PathBuf::from("zrpc.wasm")
 }
 
-/// Send an RPC request to the zrpc plugin and wait for response
+/// Send an RPC request to the zrpc plugin and wait for response.
+/// Per [[ADR-0001]], each call spawns a `zellij pipe` subprocess.
 pub fn call(request: &RpcRequest, plugin_path: Option<&str>) -> Result<RpcResponse, ClientError> {
     let default_url = default_plugin_url();
     let plugin_url = plugin_path.unwrap_or(default_url.as_str());

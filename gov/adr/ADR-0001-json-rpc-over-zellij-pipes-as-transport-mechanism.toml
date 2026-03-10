@@ -1,0 +1,69 @@
+[govctl]
+schema = 1
+id = "ADR-0001"
+title = "JSON-RPC over Zellij Pipes as transport mechanism"
+status = "accepted"
+date = "2026-03-10"
+refs = ["ADR-0002"]
+
+[content]
+context = "zjctl needs a transport mechanism for the CLI to communicate with a component running inside Zellij that has access to pane state and operations. Zellij provides a pipe mechanism (`zellij pipe`) that allows CLI processes to send messages to plugins and receive responses via stdout. The transport must work without additional infrastructure (no separate daemon, no sockets) and must function within the Zellij security sandbox."
+decision = """
+We will use JSON-RPC with UUID-correlated request/response messages, transported over Zellij's pipe mechanism (`zellij pipe`).
+
+Each CLI invocation spawns a `zellij pipe` subprocess, writes a JSON request to stdin, and reads the JSON response from stdout. The pipe message is addressed to the zrpc plugin by name (`zjctl-rpc`). Protocol version is embedded in every message for forward compatibility.
+
+This was chosen because Zellij pipes are the only officially supported IPC channel between external processes and plugins, requiring zero additional infrastructure."""
+consequences = """
+### Positive
+- Zero infrastructure requirement — works anywhere Zellij runs, no daemon or socket setup
+- Leverages Zellij's built-in security model for pipe permissions
+- Protocol versioning enables backward-compatible evolution
+
+### Negative
+- Each CLI call spawns a new subprocess — no connection reuse or multiplexing
+- Latency floor of ~50-100ms per operation due to process spawn overhead
+- Cannot pipeline multiple requests to the same session
+- No persistent connection means no server-push events or streaming
+
+### Neutral
+- Transport is inherently local; remote access requires external wrapping (SSH)
+- Plugin auto-launch via pipe means first call may have higher latency while plugin initializes"""
+
+[[content.alternatives]]
+text = "Chosen: JSON-RPC over Zellij pipes"
+status = "accepted"
+pros = [
+    "Zero infrastructure; uses Zellij's native IPC",
+    "Works within plugin security model",
+]
+cons = [
+    "One subprocess per request; no multiplexing",
+    "Local-only; no remote transport",
+]
+
+[[content.alternatives]]
+text = "Rejected: Unix domain socket server"
+status = "rejected"
+pros = [
+    "Persistent connection; supports streaming and multiplexing",
+    "Could serve multiple clients concurrently",
+]
+cons = [
+    "Requires a separate daemon process",
+    "Socket lifecycle management adds complexity",
+]
+rejection_reason = "Zellij plugins cannot open sockets; would require a separate native daemon alongside the plugin"
+
+[[content.alternatives]]
+text = "Rejected: HTTP/REST server"
+status = "rejected"
+pros = [
+    "Language-agnostic; well-understood protocol",
+    "Easy remote access",
+]
+cons = [
+    "Heavy infrastructure for a local tool",
+    "Requires port management and authentication",
+]
+rejection_reason = "Disproportionate complexity for the primary local-session use case; Zellij plugins cannot bind ports"

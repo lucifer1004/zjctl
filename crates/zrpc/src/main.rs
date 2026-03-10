@@ -1,6 +1,7 @@
 //! zrpc - Zellij RPC plugin for zjctl
 //!
 //! Receives commands via Zellij pipes and executes pane operations.
+//! Per [[ADR-0002]], runs as a WASM plugin inside Zellij's sandbox.
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "wasi")))]
 compile_error!(

@@ -1,0 +1,55 @@
+[govctl]
+schema = 1
+id = "ADR-0006"
+title = "Polling-based idle detection via screen hashing"
+status = "accepted"
+date = "2026-03-10"
+refs = [
+    "ADR-0005",
+    "ADR-0007",
+]
+
+[content]
+context = "After sending a command to a pane, users and agents need to know when the output has stabilized (the command has finished producing output). Zellij does not expose process-level events (command exit, shell prompt detection) to plugins. The only observable signal is the rendered screen content of the pane, which can be captured via dump-screen."
+decision = """
+We will implement `wait-idle` by repeatedly capturing the focused pane's screen content via `dump-screen`, hashing it with `DefaultHasher`, and comparing to the previous hash. The pane is considered idle when the hash remains unchanged for `--idle-time` seconds (default 2s). The operation fails if the total elapsed time exceeds `--timeout` (default 30s). Poll interval is `idle_time / 4`, clamped to [0.1s, 1.0s].
+
+This was chosen because screen content hashing is the most reliable signal available without process-level introspection. It detects any visible change including output, cursor movement, and screen redraws."""
+consequences = """
+### Positive
+- Works without any knowledge of the running process or shell
+- Detects any visible change, not just stdout — includes prompts, spinners, progress bars
+- Configurable idle threshold and timeout
+
+### Negative
+- Cursor blinks, clock updates, or log tailing cause false "not idle" signals
+- Inherits all capture limitations (focus requirement, concurrency conflicts)
+- Polling is CPU-inefficient compared to event-driven approaches
+- Cannot distinguish "command finished" from "command paused with no output"
+- No way to return the exit code of the completed command
+
+### Neutral
+- The adaptive poll interval (idle_time/4, clamped) balances responsiveness vs overhead
+- `--full` flag allows checking scrollback changes, not just visible screen"""
+
+[[content.alternatives]]
+text = "Chosen: Screen hash polling with configurable idle threshold"
+status = "accepted"
+pros = [
+    "Process-agnostic; works with any command or shell",
+    "Configurable idle time and timeout",
+]
+cons = [
+    "Cursor blinks and dynamic content cause false negatives",
+    "Inherits focus-based capture limitations",
+]
+
+[[content.alternatives]]
+text = "Rejected: Shell prompt detection"
+status = "rejected"
+pros = ["Would precisely detect command completion"]
+cons = [
+    "Requires knowledge of the user's shell and prompt format",
+    "Breaks with non-standard prompts, REPL environments, or non-shell processes",
+]
+rejection_reason = "Too fragile across diverse environments; would need per-shell configuration"

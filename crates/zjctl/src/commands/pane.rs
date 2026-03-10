@@ -491,6 +491,7 @@ pub fn launch(
     Ok(())
 }
 
+/// Per [[ADR-0007]], detects new panes by ID delta after launch.
 fn find_new_terminal_pane(
     panes: &[panes::PaneInfo],
     focused_tab_index: Option<usize>,
@@ -705,6 +706,7 @@ fn pane_id_to_selector(id: &str) -> Option<String> {
     }
 }
 
+/// Per [[ADR-0005]], capture requires focusing the pane and using dump-screen.
 fn dump_screen(full: bool) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let path = dump_path();
     run_dump_screen(&path, full)?;
@@ -738,6 +740,7 @@ fn dump_path() -> PathBuf {
     std::env::temp_dir().join(filename)
 }
 
+/// Per [[ADR-0006]], idle detection compares screen content hashes.
 fn hash_bytes(bytes: &[u8]) -> u64 {
     let mut hasher = DefaultHasher::new();
     bytes.hash(&mut hasher);

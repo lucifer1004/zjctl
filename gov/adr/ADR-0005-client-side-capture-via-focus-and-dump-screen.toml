@@ -1,0 +1,56 @@
+[govctl]
+schema = 1
+id = "ADR-0005"
+title = "Client-side capture via focus and dump-screen"
+status = "accepted"
+date = "2026-03-10"
+refs = [
+    "ADR-0006",
+    "ADR-0002",
+    "ADR-0004",
+]
+
+[content]
+context = "zjctl needs to capture the rendered output of arbitrary panes. Zellij's plugin API does not expose a per-pane screen capture method; the only available mechanism is `zellij action dump-screen`, which dumps the currently focused pane's content to a file. This means capturing a non-focused pane requires first focusing it, dumping, then optionally restoring the previous focus."
+decision = """
+We will implement capture by: (1) resolving the target pane's stable selector, (2) recording the currently focused pane for later restoration, (3) focusing the target pane via RPC, (4) running `zellij action dump-screen` to a temp file, (5) reading and deleting the temp file, (6) restoring focus to the original pane (unless `--no-restore`).
+
+This was chosen because `zellij action dump-screen` is the only available mechanism for reading pane content, and it only operates on the currently focused pane. The focus-restore dance minimizes disruption to the user."""
+consequences = """
+### Positive
+- Works with any pane regardless of type (terminal or plugin)
+- Supports both visible screen and full scrollback capture
+- Focus-restore minimizes user disruption
+
+### Negative
+- Concurrent captures on different panes in the same session conflict — they race on focus
+- The focus-dump-restore sequence is not atomic, creating a window for interference
+- Capturing a pane momentarily shifts the user's view if they are watching
+- Temp file I/O adds latency and creates cleanup obligations
+- Cannot scale to monitoring many panes simultaneously
+
+### Neutral
+- `--no-restore` flag gives callers control over the focus side-effect
+- Capture returns raw terminal content including ANSI escape sequences"""
+
+[[content.alternatives]]
+text = "Chosen: Client-side focus + dump-screen + restore"
+status = "accepted"
+pros = [
+    "Works with current Zellij API; no plugin changes needed",
+    "Supports both visible and full scrollback",
+]
+cons = [
+    "Requires focusing the pane; not concurrent-safe",
+    "Not atomic; race window during focus-dump-restore",
+]
+
+[[content.alternatives]]
+text = "Rejected: Plugin-side screen buffer reading"
+status = "rejected"
+pros = [
+    "No focus change needed; concurrent-safe",
+    "Could be done entirely via RPC",
+]
+cons = ["Zellij plugin API does not expose per-pane screen buffer content"]
+rejection_reason = "The zellij-tile API does not provide a method to read pane screen content from a plugin"

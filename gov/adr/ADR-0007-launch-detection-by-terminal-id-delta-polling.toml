@@ -1,0 +1,48 @@
+[govctl]
+schema = 1
+id = "ADR-0007"
+title = "Launch detection by terminal ID delta polling"
+status = "accepted"
+date = "2026-03-10"
+refs = ["ADR-0004"]
+
+[content]
+context = """After launching a new pane via `zellij run` or `zellij action new-pane`, zjctl needs to return a stable selector for the newly created pane so callers can address it in subsequent commands. Zellij does not return the new pane's ID from its CLI commands, and there is no "pane created" event callback available to plugins that includes the triggering context."""
+decision = """
+We will detect newly launched panes by: (1) recording the maximum terminal pane ID before launch, (2) executing `zellij run` or `zellij action new-pane`, (3) polling `panes.list` until a new terminal pane appears with an ID greater than the pre-launch maximum. Candidates are filtered by tab, floating status, and name to reduce false matches. The poll loop has a 50ms interval and 180s timeout.
+
+This was chosen because Zellij's CLI does not return the new pane's ID, and the plugin receives no correlated "pane created" event. ID-delta polling is the most reliable heuristic available."""
+consequences = """
+### Positive
+- Returns a usable `id:terminal:N` selector that callers can use immediately
+- Filtering by tab, floating status, and name reduces false matches
+- Works without requiring Zellij API changes
+
+### Negative
+- Race condition if multiple panes are launched concurrently — ID delta may match the wrong pane
+- 180s hardcoded timeout is not configurable
+- Polling at 50ms intervals adds latency (typically 50-200ms to detect new pane)
+- If `--close-on-exit` is used and the command exits instantly, the pane may vanish before detection
+
+### Neutral
+- The highest-ID heuristic assumes Zellij assigns monotonically increasing terminal IDs
+- Does not work for plugin panes, only terminal panes"""
+
+[[content.alternatives]]
+text = "Chosen: Pre/post ID delta polling via panes.list"
+status = "accepted"
+pros = [
+    "Works without Zellij API changes",
+    "Filtering by tab and name reduces false matches",
+]
+cons = [
+    "Race condition with concurrent launches",
+    "Polling adds 50-200ms detection latency",
+]
+
+[[content.alternatives]]
+text = "Rejected: Zellij CLI returning new pane ID"
+status = "rejected"
+pros = ["Instant; no polling needed; race-free"]
+cons = ["Requires upstream Zellij changes"]
+rejection_reason = "Zellij's run and new-pane commands do not currently return the created pane ID; would require an upstream feature request"

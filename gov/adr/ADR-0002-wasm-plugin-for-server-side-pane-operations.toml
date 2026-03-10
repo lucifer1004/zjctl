@@ -1,0 +1,59 @@
+[govctl]
+schema = 1
+id = "ADR-0002"
+title = "WASM plugin for server-side pane operations"
+status = "accepted"
+date = "2026-03-10"
+refs = [
+    "ADR-0001",
+    "ADR-0003",
+]
+
+[content]
+context = "zjctl needs a component running inside Zellij that can track pane/tab state, resolve selectors against live state, and execute pane operations (send input, focus, rename, resize). Zellij exposes these capabilities through its plugin API (`zellij-tile`), which runs WASM modules in a sandbox with declared permissions. The alternative would be scraping Zellij state from the outside or requiring Zellij source modifications."
+decision = """
+We will implement the server-side component as a Zellij WASM plugin (`wasm32-wasip1`) using the `zellij-tile` crate.
+
+The plugin (zrpc) runs as a hidden background service, subscribes to `PaneUpdate`, `TabUpdate`, `ListClients`, and `Timer` events, maintains an in-memory state snapshot, and handles incoming pipe messages as RPC requests. It requests `ReadApplicationState`, `WriteToStdin`, `ChangeApplicationState`, and `ReadCliPipes` permissions.
+
+This was chosen because the Zellij plugin API is the only supported way to access pane state and operations programmatically without modifying Zellij itself."""
+consequences = """
+### Positive
+- Full access to Zellij's pane state, input writing, and layout control
+- Runs in-process with Zellij — low-latency access to state
+- Hidden background service — invisible to the user
+- Sandboxed execution with declared permissions
+
+### Negative
+- Constrained to WASM sandbox capabilities (no filesystem, no network, no threads)
+- Cannot use native Rust crates that require std features unavailable in WASI
+- Plugin must be rebuilt and reinstalled for each zjctl release
+- If the plugin crashes, there is no auto-recovery mechanism
+- Cannot capture pane screen content from the plugin side (Zellij API limitation)
+
+### Neutral
+- Requires user to accept permissions on first load
+- Plugin state is ephemeral — rebuilt from events on each session start"""
+
+[[content.alternatives]]
+text = "Chosen: Zellij WASM plugin via zellij-tile"
+status = "accepted"
+pros = [
+    "Full access to pane state and operations",
+    "Runs in-process; low latency",
+    "No external dependencies",
+]
+cons = [
+    "WASM sandbox limits capabilities",
+    "Cannot capture screen content from plugin side",
+]
+
+[[content.alternatives]]
+text = "Rejected: External state scraping via CLI"
+status = "rejected"
+pros = ["No plugin needed; simpler distribution"]
+cons = [
+    "No reliable API for pane state; depends on parsing human-readable output",
+    "Cannot write to pane stdin without plugin",
+]
+rejection_reason = "Zellij CLI does not expose structured pane state or input-writing capabilities"
