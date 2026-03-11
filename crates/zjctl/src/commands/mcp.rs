@@ -536,6 +536,40 @@ fn pane_id_to_selector(id: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    fn make_pane(id: &str) -> panes::PaneInfo {
+        panes::PaneInfo {
+            id: id.to_string(),
+            pane_type: "terminal".to_string(),
+            title: String::new(),
+            command: None,
+            tab_index: 0,
+            tab_name: "tab".to_string(),
+            focused: false,
+            floating: false,
+            suppressed: false,
+            rows: 24,
+            cols: 80,
+            exit_status: None,
+            tags: HashMap::new(),
+        }
+    }
+
+    fn default_options<'a>() -> pane::LaunchOptions<'a> {
+        pane::LaunchOptions {
+            direction: None,
+            floating: false,
+            name: None,
+            cwd: None,
+            close_on_exit: false,
+            in_place: false,
+            start_suspended: false,
+            command: &[],
+        }
+    }
+
+    // --- parse_terminal_id ---
 
     #[test]
     fn parse_terminal_id_valid() {
@@ -550,11 +584,140 @@ mod tests {
     }
 
     #[test]
-    fn pane_id_to_selector_works() {
+    fn parse_terminal_id_non_numeric() {
+        assert_eq!(parse_terminal_id("terminal:abc"), None);
+    }
+
+    // --- pane_id_to_selector ---
+
+    #[test]
+    fn pane_id_to_selector_terminal() {
         assert_eq!(
             pane_id_to_selector("terminal:3"),
             Some("id:terminal:3".to_string())
         );
+    }
+
+    #[test]
+    fn pane_id_to_selector_plugin() {
+        assert_eq!(
+            pane_id_to_selector("plugin:7"),
+            Some("id:plugin:7".to_string())
+        );
+    }
+
+    #[test]
+    fn pane_id_to_selector_rejects_invalid() {
         assert_eq!(pane_id_to_selector("invalid"), None);
+        assert_eq!(pane_id_to_selector("terminal:1:extra"), None);
+        assert_eq!(pane_id_to_selector("other:5"), None);
+    }
+
+    // --- find_new_pane ---
+
+    #[test]
+    fn find_new_pane_returns_none_when_no_panes_exceed_baseline() {
+        let panes = vec![make_pane("terminal:1"), make_pane("terminal:2")];
+        let opts = default_options();
+        assert!(find_new_pane(&panes, None, &opts, 5).is_none());
+    }
+
+    #[test]
+    fn find_new_pane_ignores_plugin_panes() {
+        let mut p = make_pane("plugin:10");
+        p.pane_type = "plugin".to_string();
+        let panes = vec![p];
+        let opts = default_options();
+        assert!(find_new_pane(&panes, None, &opts, 0).is_none());
+    }
+
+    #[test]
+    fn find_new_pane_ignores_suppressed() {
+        let mut p = make_pane("terminal:10");
+        p.suppressed = true;
+        let panes = vec![p];
+        let opts = default_options();
+        assert!(find_new_pane(&panes, None, &opts, 0).is_none());
+    }
+
+    #[test]
+    fn find_new_pane_floating_filter() {
+        let mut p1 = make_pane("terminal:10");
+        p1.floating = true;
+        let mut p2 = make_pane("terminal:11");
+        p2.floating = false;
+
+        let mut opts = default_options();
+        opts.floating = true;
+        let result = find_new_pane(&[p1, p2], None, &opts, 0);
+        assert_eq!(result.unwrap().id, "terminal:10");
+    }
+
+    #[test]
+    fn find_new_pane_tab_filter() {
+        let mut p1 = make_pane("terminal:10");
+        p1.tab_index = 0;
+        let mut p2 = make_pane("terminal:11");
+        p2.tab_index = 1;
+
+        let opts = default_options();
+        let result = find_new_pane(&[p1, p2], Some(1), &opts, 0);
+        assert_eq!(result.unwrap().id, "terminal:11");
+    }
+
+    #[test]
+    fn find_new_pane_name_filter() {
+        let mut p1 = make_pane("terminal:10");
+        p1.title = "build-output".to_string();
+        let mut p2 = make_pane("terminal:11");
+        p2.title = "server".to_string();
+
+        let cmd = vec![];
+        let opts = pane::LaunchOptions {
+            name: Some("build"),
+            command: &cmd,
+            ..default_options()
+        };
+        let result = find_new_pane(&[p1, p2], None, &opts, 0);
+        assert_eq!(result.unwrap().id, "terminal:10");
+    }
+
+    #[test]
+    fn find_new_pane_returns_highest_id() {
+        let panes = vec![
+            make_pane("terminal:5"),
+            make_pane("terminal:9"),
+            make_pane("terminal:7"),
+        ];
+        let opts = default_options();
+        let result = find_new_pane(&panes, None, &opts, 0);
+        assert_eq!(result.unwrap().id, "terminal:9");
+    }
+
+    #[test]
+    fn find_new_pane_no_tab_filter_when_none() {
+        let mut p1 = make_pane("terminal:10");
+        p1.tab_index = 0;
+        let mut p2 = make_pane("terminal:11");
+        p2.tab_index = 1;
+
+        let opts = default_options();
+        // focused_tab_index=None → no tab filtering, returns highest id
+        let result = find_new_pane(&[p1, p2], None, &opts, 0);
+        assert_eq!(result.unwrap().id, "terminal:11");
+    }
+
+    // --- plugin accessor ---
+
+    #[test]
+    fn new_with_plugin_returns_some() {
+        let s = ZjctlMcp::new(Some("/tmp/x.wasm".to_string()));
+        assert_eq!(s.plugin(), Some("/tmp/x.wasm"));
+    }
+
+    #[test]
+    fn new_without_plugin_returns_none() {
+        let s = ZjctlMcp::new(None);
+        assert_eq!(s.plugin(), None);
     }
 }

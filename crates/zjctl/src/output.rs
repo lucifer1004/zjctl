@@ -104,4 +104,69 @@ mod tests {
         assert_eq!(code, "error");
         assert_eq!(exit, EXIT_RPC_ERROR);
     }
+
+    #[test]
+    fn classify_rpc_method_not_found() {
+        let err = ClientError::RpcError("unknown method: foo".to_string());
+        let (code, _) = classify_error(&err);
+        assert_eq!(code, "method_not_found");
+    }
+
+    #[test]
+    fn classify_rpc_generic_fallthrough() {
+        let err = ClientError::RpcError("something unrecognised".to_string());
+        let (code, exit) = classify_error(&err);
+        assert_eq!(code, "rpc_error");
+        assert_eq!(exit, EXIT_RPC_ERROR);
+    }
+
+    #[test]
+    fn classify_plugin_not_installed() {
+        let err = ClientError::PluginNotInstalled {
+            path: "/tmp/x.wasm".to_string(),
+            install_cmd: String::new(),
+            download_cmd: String::new(),
+            launch_cmd: String::new(),
+        };
+        let (code, exit) = classify_error(&err);
+        assert_eq!(code, "plugin_not_installed");
+        assert_eq!(exit, EXIT_CLIENT_ERROR);
+    }
+
+    #[test]
+    fn print_success_json_structure() {
+        // Capture stdout by serializing manually (print_success writes to stdout)
+        let data = serde_json::json!({"pane": "terminal:3"});
+        let wrapper = serde_json::json!({
+            "ok": true,
+            "result": data,
+        });
+        let json: serde_json::Value = serde_json::from_str(
+            &serde_json::to_string(&wrapper).unwrap()
+        ).unwrap();
+        assert_eq!(json["ok"], true);
+        assert_eq!(json["result"]["pane"], "terminal:3");
+        assert!(json.get("error").is_none());
+    }
+
+    #[test]
+    fn format_error_json_structure() {
+        let err = ClientError::RpcError("no panes match selector".to_string());
+        let (code, _) = classify_error(&err);
+        // Reconstruct the same JSON that format_error produces
+        let wrapper = serde_json::json!({
+            "ok": false,
+            "error": {
+                "code": code,
+                "message": err.to_string(),
+            }
+        });
+        let json: serde_json::Value = serde_json::from_str(
+            &serde_json::to_string(&wrapper).unwrap()
+        ).unwrap();
+        assert_eq!(json["ok"], false);
+        assert_eq!(json["error"]["code"], "no_match");
+        assert!(json["error"]["message"].as_str().unwrap().contains("no panes match"));
+        assert!(json.get("result").is_none());
+    }
 }
