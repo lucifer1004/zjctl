@@ -2,14 +2,14 @@
 schema = 1
 id = "WI-2026-03-10-005"
 title = "Tab management commands"
-status = "active"
+status = "done"
 created = "2026-03-10"
 started = "2026-03-10"
+completed = "2026-03-10"
 refs = ["RFC-0001"]
 
 [content]
-description = """
-Agents running multi-task workflows need to organize panes into tabs. This work item adds a `tab` subcommand group with tab lifecycle operations: list (via tabs.list RPC), create, focus, rename, and close (via zellij action commands)."""
+description = "Agents running multi-task workflows need to organize panes into tabs. This work item adds a `tab` subcommand group with tab lifecycle operations: list (via tabs.list RPC), create, focus, rename, and close (via zellij action commands)."
 
 [[content.acceptance_criteria]]
 text = "zjctl tab ls lists all tabs with index, name, and active status"

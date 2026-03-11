@@ -2,9 +2,10 @@
 schema = 1
 id = "WI-2026-03-10-001"
 title = "Add --session flag and session management commands"
-status = "active"
+status = "done"
 created = "2026-03-10"
 started = "2026-03-10"
+completed = "2026-03-10"
 refs = [
     "ADR-0001",
     "RFC-0001",
@@ -20,35 +21,35 @@ Related: [[ADR-0001]] (transport is local, session-scoped), [[RFC-0001:C-TRANSPO
 
 [[content.acceptance_criteria]]
 text = "zjctl accepts a global --session <name> flag that overrides ZELLIJ_SESSION_NAME for all subcommands"
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "zjctl sessions ls lists all active Zellij sessions with --json support"
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "zjctl sessions create <name> creates a new detached Zellij session"
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "zjctl sessions kill <name> terminates a Zellij session"
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "all existing pane/panes/status commands work correctly when --session is specified"
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "--session flag is documented in zjctl --help and zjctl help output"
-status = "pending"
+status = "done"
 category = "added"
 
 [[content.acceptance_criteria]]
 text = "RFC-0001:C-TRANSPORT is updated to specify session targeting semantics"
-status = "pending"
+status = "done"
 category = "added"

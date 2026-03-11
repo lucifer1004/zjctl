@@ -2,9 +2,10 @@
 schema = 1
 id = "WI-2026-03-10-004"
 title = "Process and exit detection for pane commands"
-status = "active"
+status = "done"
 created = "2026-03-10"
 started = "2026-03-10"
+completed = "2026-03-10"
 refs = ["RFC-0001"]
 
 [content]
