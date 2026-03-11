@@ -32,5 +32,10 @@ clap = { version = "4.0", features = ["derive", "env"] }
 # Plugin — pinned to main for get_pane_scrollback (PR #4465, merged Oct 2025, not yet released)
 zellij-tile = { git = "https://github.com/zellij-org/zellij", branch = "main" }
 
+# MCP (per [[ADR-0008]], feature-gated)
+rmcp = { version = "0.1", features = ["server", "transport-io"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std"] }
+schemars = "0.8"
+
 # Internal
 zjctl-proto = { path = "crates/zjctl-proto", version = "0.1.3" }

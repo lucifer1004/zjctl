@@ -1,0 +1,64 @@
+[govctl]
+schema = 1
+id = "WI-2026-03-11-001"
+title = "MCP server for remote agent access"
+status = "active"
+created = "2026-03-11"
+started = "2026-03-11"
+refs = ["ADR-0008"]
+
+[content]
+description = """
+Per [[ADR-0008]], add a `zjctl mcp` subcommand that runs an MCP server over \
+stdio using the `rmcp` crate. Six tools for the core agent read/write loop, \
+plus resources for passive state access. Feature-gated behind `--features mcp`."""
+
+[[content.acceptance_criteria]]
+text = "rmcp dependency added with features = [\"server\", \"transport-io\"], gated behind cargo feature \"mcp\""
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl mcp subcommand starts MCP server on stdio (only compiled with --features mcp)"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "pane_launch tool: starts pane, returns selector"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "pane_send tool: writes text to pane stdin"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "pane_read tool: captures output, optional pattern for grep, optional full for scrollback"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "pane_wait tool: mode=idle waits for output to settle, mode=exit waits for process exit"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "pane_close tool: closes a pane"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "panes_list tool: returns all panes with IDs, titles, status, tags"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "zjctl://panes, zjctl://pane/{id}/output, zjctl://tabs resources return read-only data"
+status = "done"
+category = "added"
+
+[[content.acceptance_criteria]]
+text = "cargo build -p zjctl (without mcp feature) still compiles without rmcp dependency"
+status = "done"
+category = "added"

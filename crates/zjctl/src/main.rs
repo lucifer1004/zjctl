@@ -245,6 +245,9 @@ enum Commands {
     },
     /// Execute multiple RPC calls in a single request (reads JSON array from stdin)
     Batch,
+    /// Start MCP server on stdio (for remote agent access via SSH)
+    #[cfg(feature = "mcp")]
+    Mcp,
     /// Agent-friendly quickstart
     Help,
     /// Install the zrpc plugin
@@ -599,6 +602,11 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         },
         Commands::Batch => {
             commands::batch::run(plugin, json)?;
+        }
+        #[cfg(feature = "mcp")]
+        Commands::Mcp => {
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(commands::mcp::run(plugin))?;
         }
         Commands::Action { args } => {
             commands::action::run(&args)?;

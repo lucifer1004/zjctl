@@ -9,3 +9,6 @@ pub mod panes;
 pub mod sessions;
 pub mod status;
 pub mod tab;
+
+#[cfg(feature = "mcp")]
+pub mod mcp;

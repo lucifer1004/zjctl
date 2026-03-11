@@ -2,7 +2,7 @@
 schema = 1
 id = "ADR-0008"
 title = "MCP server for remote agent access via rmcp and stdio transport"
-status = "proposed"
+status = "accepted"
 date = "2026-03-10"
 refs = [
     "RFC-0001",
