@@ -1,0 +1,54 @@
+[govctl]
+schema = 1
+id = "ADR-0008"
+title = "MCP server for remote agent access via rmcp and stdio transport"
+status = "proposed"
+date = "2026-03-10"
+refs = [
+    "RFC-0001",
+    "ADR-0001",
+    "ADR-0002",
+    "ADR-0003",
+]
+
+[content]
+context = "Agents (Claude Code, Cursor, etc.) need to control Zellij panes on remote servers. Currently zjctl requires local access to the Zellij pipe IPC mechanism per [[ADR-0001]]. The Model Context Protocol (MCP) has emerged as the standard interface between AI agents and external tools. MCP supports stdio transport (agent spawns a subprocess) which composes naturally with SSH for remote access. The Rust MCP ecosystem has matured with the `rmcp` crate providing a production-quality SDK. Exposing zjctl as an MCP server would give any MCP-compatible agent native tool access to Zellij pane operations without shell escaping, output parsing, or custom client libraries."
+decision = """
+Add a `zjctl mcp` subcommand that runs an MCP server over stdio using the `rmcp` crate.
+
+**Transport:** stdio (stdin/stdout JSON-RPC). For remote access, agents configure SSH as the transport command (e.g., `ssh server zjctl mcp --session my-session`). No HTTP/SSE server — SSH handles authentication, encryption, and connection management.
+
+**Tools:** Six MCP tools covering the agent read/write loop, mapping to existing `commands::*` functions:
+
+- `pane_launch(command?, direction?, name?, cwd?, floating?)` — start a new pane, return its selector
+- `pane_send(pane, text)` — write text to a pane's stdin
+- `pane_read(pane, pattern?, full?)` — read pane output; without pattern returns full content (capture), with pattern returns matching lines with line numbers (grep). Supports substring and /regex/ patterns.
+- `pane_wait(pane, mode: "idle"|"exit", timeout?)` — block until output settles (idle) or process exits (exit). Returns elapsed time or exit code.
+- `pane_close(pane, force?)` — close a pane
+- `panes_list()` — list all panes with IDs, titles, status, tags
+
+This minimal set covers the core agent loop: launch → send → read → wait → close. Operations like focus, rename, resize, interrupt, escape, tab management, batch, and tagging are available via the CLI but excluded from MCP tools because agents don't need them for read/write workflows. Interrupt/escape can be achieved via `pane_send` with control characters.
+
+**Resources:** Read-only MCP resources for passive state access: `zjctl://panes` (pane list), `zjctl://pane/{id}/output` (visible content), `zjctl://pane/{id}/scrollback` (full scrollback), `zjctl://tabs` (tab list), `zjctl://status` (session status). Resources reuse existing RPC calls internally.
+
+**Implementation:** A new `commands/mcp.rs` module wraps existing command functions. The MCP server calls `client::rpc_call()` for plugin-backed operations and `commands::*` functions for CLI-level operations, reusing all existing code paths. No changes to the zrpc WASM plugin.
+
+**Crate:** The `rmcp` crate provides the MCP protocol implementation, tool/resource registration, and stdio transport handling. Gated behind `--features mcp` cargo feature."""
+consequences = """
+Positive: Any MCP-compatible agent can control Zellij panes remotely with native tool calling — no shell escaping or output parsing. SSH provides zero-config security. The implementation is thin (wrapper over existing commands) so maintenance burden is low. Resources give agents efficient read access to pane state without tool-call overhead.
+
+Negative: Adds `rmcp` as a dependency to the zjctl crate, increasing compile time and binary size. Mitigated by gating behind a `--features mcp` cargo feature so non-MCP users pay zero cost. The MCP protocol is still evolving (particularly around resource subscriptions), so we may need to track upstream changes. Mitigated by pinning to a specific rmcp version. The stdio transport limits us to one agent connection per `zjctl mcp` process. Mitigated by the fact that agents can spawn multiple processes if needed.
+
+Neutral: The existing CLI interface is unchanged. Agents that prefer shell-based interaction (e.g., `ssh server "zjctl pane capture ..."`) continue to work. The MCP server is an additional access path, not a replacement. When an underlying RPC call fails, the MCP server returns an MCP error response with the error code and message from [[RFC-0001:C-ERRORS]] — it does not drop the connection."""
+
+[[content.alternatives]]
+text = "SSH + CLI wrapping: Agent runs zjctl commands over SSH directly. Zero code changes but requires shell escaping, output parsing, and per-command SSH overhead (mitigated by ControlMaster). No native tool discovery — agent must know the CLI interface. Rejected because MCP provides a strictly better agent experience for the same SSH transport."
+status = "considered"
+
+[[content.alternatives]]
+text = "HTTP/gRPC daemon: zjctl serve exposes a network API. Requires implementing auth, TLS, and a listening server. Major security surface for marginal latency benefit over SSH stdio. Rejected because SSH already provides authenticated encrypted transport."
+status = "considered"
+
+[[content.alternatives]]
+text = "Custom stdio proxy: zjctl proxy reads JSON-RPC over stdin/stdout using the existing zjctl-proto protocol. Works but requires a custom client library. Rejected because MCP is an established standard with broad agent support, making a custom protocol unnecessary."
+status = "considered"
